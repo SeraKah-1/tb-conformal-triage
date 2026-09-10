@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, model weights, or methodology in your research, please cite our medRxiv preprint."
+authors:
+  - family-names: "Aditya"
+    given-names: "M. Farrel"
+    affiliation: "Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia"
+    email: "farreladitya38@gmail.com"
+title: "Auditable Conformal Triage and High-Resolution Attributions for Pulmonary Tuberculosis on Chest Radiographs: A Multi-Center Development and Double-Blind Stress-Testing Study"
+date-released: 2026-09-10
+repository-code: "https://github.com/farreladitya/tb-conformal-triage"
+url: "https://www.medrxiv.org"
+keywords:
+  - "pulmonary tuberculosis"
+  - "conformal prediction"
+  - "chest radiography"
+  - "uncertainty quantification"
+  - "explainable AI"
+  - "HiResCAM"
+  - "out-of-distribution detection"
