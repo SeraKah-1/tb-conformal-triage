@@ -17,7 +17,7 @@ Computer-aided detection (CAD) software for pulmonary tuberculosis (TB) on chest
 
 This repository hosts the official open-source implementation, model weights, and reproducibility pipeline for our multi-center clinical study:
 
-> **"Retrospective Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings"**  
+> **"Eliminating False-Negative Discharges in Tuberculosis Screening: Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture"**  
 > *M. Farrel Aditya*  
 > Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia  
 > Preprint: [medRxiv (2026)](https://www.medrxiv.org) | Email: `farreladitya38@gmail.com`
@@ -207,7 +207,7 @@ If this work, dataset splits, or safety architecture aids your medical AI resear
 
 ```bibtex
 @article{aditya2026tbconformal,
-  title={Retrospective Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings},
+  title={Eliminating False-Negative Discharges in Tuberculosis Screening: Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture},
   author={Aditya, M. Farrel},
   journal={medRxiv},
   year={2026},
