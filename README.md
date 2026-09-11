@@ -1,6 +1,6 @@
 # Auditable Conformal Triage & High-Resolution Attributions for Pulmonary Tuberculosis (TB-CXR Conformal)
 
-[![Preprint](https://img.shields.io/badge/medRxiv-2026.362737-B31B1B.svg)](https://www.medrxiv.org)
+[![Preprint](https://img.shields.io/badge/medRxiv-Preprint%20Pending-B31B1B.svg)](https://www.medrxiv.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C.svg)](https://pytorch.org/)
@@ -208,7 +208,7 @@ If this work, dataset splits, or safety architecture aids your medical AI resear
   journal={medRxiv},
   year={2026},
   publisher={Cold Spring Harbor Laboratory},
-  doi={10.1101/2026.362737},
+  note={Preprint deposited at medRxiv (DOI pending)},
   url={https://www.medrxiv.org}
 }
 ```
