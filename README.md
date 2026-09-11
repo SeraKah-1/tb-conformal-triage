@@ -24,6 +24,19 @@ This repository provides the open-source implementation, serialized model weight
 
 ---
 
+## Key Differentiators (Forensically Verified)
+
+| # | Differentiator | Evidence |
+| :---: | :--- | :--- |
+| 1 | **Multi-Cohort Scale:** 8 hospitals, 5 countries (China, USA, Belarus, India, Pakistan), 16,040 radiographs. Not a single-dataset experiment. | Table 1 and Section 2.2; sum verified: 8,399 + 662 + 138 + 306 + 3,094 + 155 + 278 + 3,008 = 16,040. |
+| 2 | **Triple Reporting Standards Compliance:** TRIPOD+AI 2024 (15 items), CLAIM 2024 (25 items), STARD-AI 2020 (34 items). All completed item-by-item with section-level evidence. | Supplementary Appendix, Sections 1 through 3; 74 total checklist items filled. |
+| 3 | **Reproducibility Gold Standard:** SHA-256 model checksum (`d461fe07...`), deterministic seed 42, PyTorch 2.5.1+cu121, public GitHub repo, Kaggle Datasets and Model Hub permanent archives. | Section 5, Supplementary Table S3, and `03_CHECKSUM_DAN_REPRODUSIBILITAS.txt`. |
+| 4 | **Brutal Honesty:** Pakistan AUROC 0.4982 (equivalent to coin flip) reported transparently in abstract, results, discussion, tables, and README. No cherry-picking. | Abstract, Section 3.3, Table 2, Table S2D, and Section 4.1. |
+| 5 | **Formal Statistical Safety Layers:** Mondrian Split Conformal Prediction ($\alpha = 0.05$) with finite-sample coverage, L-BFGS temperature scaling ($T = 0.8349$), and penultimate-layer Mahalanobis OOD detection with full mathematical derivations. | Sections 2.5 through 2.8, Equations 6 through 17. |
+| 6 | **Exhaustive Data Leakage Audit:** 288,420 cross-center pairwise perceptual hash comparisons (dHash + pHash), 0 collisions (0.00% leakage rate). Paranoia-level integrity verification. | Section 3.7 Probe 4 and Supplementary Table S5. |
+
+---
+
 ## Core Safety Architecture & Five-Stage Interlocks
 
 The framework integrates five deterministic defense layers to prevent unverified model predictions from reaching clinical triage actions:
