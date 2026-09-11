@@ -17,7 +17,7 @@ Computer-aided detection (CAD) software for pulmonary tuberculosis (TB) on chest
 
 This repository hosts the official open-source implementation, model weights, and reproducibility pipeline for our multi-center clinical study:
 
-> **"Multi-Center Development and External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings"**  
+> **"Retrospective Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings"**  
 > *M. Farrel Aditya*  
 > Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia  
 > Preprint: [medRxiv (2026)](https://www.medrxiv.org) | Email: `farreladitya38@gmail.com`
@@ -127,7 +127,7 @@ All metrics were empirically evaluated on physical disk datasets without mock st
 | **Combined Indian Clinical CXRs** | Multi-center external validation | 433 | **0.8682** (0.829-0.908) | **75.37%** (153/203) | **82.61%** (190/230) | **78.29%** | 18 / 203 (8.87%) | **NON_COMPLIANT** |
 | **External Stress Test (Pure Assistive Mode)** | All External Clinical Cohorts | 433 | **0.8682** (0.829-0.908) | **75.37%** (Doctor Verified) | **82.61%** (Doctor Verified) | **78.29%** | **0 / 203 (0.00%)** | **SAFETY_LOCKED** |
 
-\* *Note on Development Discrimination:* Near-perfect internal discrimination (AUROC 0.9943) reflects institutional acquisition signatures between single-class development cohorts (Belarus cavitary TB vs RSNA normal controls, r=+0.7205) as documented by our linear probe audit. The genuine clinical benchmark is established on the external multi-center Indian cohorts (AUROC 0.8682).
+\* *Note on Development Discrimination:* Near-perfect internal discrimination (AUROC 0.9943) reflects institutional acquisition signatures between single-class development splits (Belarus cavitary TB vs RSNA normal controls, r=+0.7205) as documented by our linear probe audit. The genuine clinical benchmark is established on the unseen external multi-center Indian cohorts (n=433, pooled AUROC 0.8682). WHO CAD TPP benchmarks (>=90.0% sensitivity, >=70.0% specificity) on external cohorts are evaluated via exploratory local threshold recalibration (tau=0.0198 on Solan, tau=0.0903 on NITRD).
 
 > **Key Clinical Takeaway:** Raw zero-shot deployment of uncalibrated deep learning models on unseen external radiographs is hazardous (18 missed active cases under uncalibrated triage). Enabling our pre-analytic IQA blockiness filter and pure assistive triage policy safely intercepted all unverified cases, reducing autonomous missed discharges to **exactly 0 (0.00%)**.
 
@@ -207,7 +207,7 @@ If this work, dataset splits, or safety architecture aids your medical AI resear
 
 ```bibtex
 @article{aditya2026tbconformal,
-  title={Multi-Center Development and External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings},
+  title={Retrospective Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings},
   author={Aditya, M. Farrel},
   journal={medRxiv},
   year={2026},
