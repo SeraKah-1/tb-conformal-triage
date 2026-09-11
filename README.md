@@ -17,7 +17,7 @@ Computer-aided detection (CAD) software for pulmonary tuberculosis (TB) on chest
 
 This repository hosts the official open-source implementation, model weights, and reproducibility pipeline for our multi-center clinical study:
 
-> **"Auditable Conformal Triage and High-Resolution Attributions for Pulmonary Tuberculosis on Chest Radiographs: A Multi-Center Development and Double-Blind Stress-Testing Study"**  
+> **"Calibration and external multi-center evaluation of a conformalized DenseNet-121 architecture for chest radiograph triage of pulmonary tuberculosis: a double-blind observational study"**  
 > *M. Farrel Aditya*  
 > Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia  
 > Preprint: [medRxiv (2026)](https://www.medrxiv.org) | Email: `farreladitya38@gmail.com`
@@ -84,7 +84,7 @@ Mandatory Expert Radiologist Secondary Review"]
         R -- "C(X) = {Norm} AND D_M OK AND Mode = Autonomous" --> T3["TRIAGE 3: AUTO_RELEASE_NORMAL
 Autonomous Workload Reduction (Hold-out test)"]
         R -- "C(X) = {Norm} AND Mode = Pure Assistive" --> T4["TRIAGE 3B: ASSISTIVE_NORMAL_DOCTOR_VERIFY
-Zero False-Negative Discharge Guarantee (0.00%)"]
+Physician Verification Safeguard (0.00% False Negatives in External Stress Cohort)"]
     end
 ```
 
@@ -188,11 +188,11 @@ engine = DenseNetConformalTriageEngine(
 # Run Full Triage Pipeline
 result = engine.predict_triage("path/to/chest_xray.png")
 
-print(f"Calibrated P(TB):     {result[p_tb]:.4f}")
-print(f"Conformal Set C(X):   {result[conformal_set]}")
-print(f"Triage Decision:      {result[triage_action]}")
-print(f"Mahalanobis OOD:      {result[ood_report][is_ood]}")
-print(f"Clinical Direction:   {result[clinical_recommendation]}")
+print(f"Calibrated P(TB):     {result['p_tb']:.4f}")
+print(f"Conformal Set C(X):   {result['conformal_set']}")
+print(f"Triage Decision:      {result['triage_action']}")
+print(f"Mahalanobis OOD:      {result['ood_report']['is_ood']}")
+print(f"Clinical Direction:   {result['clinical_recommendation']}")
 ```
 
 ---
@@ -203,7 +203,7 @@ If this work, dataset splits, or safety architecture aids your medical AI resear
 
 ```bibtex
 @article{aditya2026tbconformal,
-  title={Auditable Conformal Triage and High-Resolution Attributions for Pulmonary Tuberculosis on Chest Radiographs: A Multi-Center Development and Double-Blind Stress-Testing Study},
+  title={Calibration and external multi-center evaluation of a conformalized DenseNet-121 architecture for chest radiograph triage of pulmonary tuberculosis: a double-blind observational study},
   author={Aditya, M. Farrel},
   journal={medRxiv},
   year={2026},
