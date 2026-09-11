@@ -5,9 +5,9 @@ authors:
     given-names: "M. Farrel"
     affiliation: "Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia"
     email: "farreladitya38@gmail.com"
-title: "Calibration and external multi-center evaluation of a conformalized DenseNet-121 architecture for chest radiograph triage of pulmonary tuberculosis: a double-blind observational study"
+title: "Multi-Center Development and External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings"
 date-released: 2026-09-10
-repository-code: "https://github.com/farreladitya/tb-conformal-triage"
+repository-code: "https://github.com/SeraKah-1/tb-conformal-triage"
 url: "https://www.medrxiv.org"
 keywords:
   - "pulmonary tuberculosis"

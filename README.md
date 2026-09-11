@@ -17,7 +17,7 @@ Computer-aided detection (CAD) software for pulmonary tuberculosis (TB) on chest
 
 This repository hosts the official open-source implementation, model weights, and reproducibility pipeline for our multi-center clinical study:
 
-> **"Calibration and external multi-center evaluation of a conformalized DenseNet-121 architecture for chest radiograph triage of pulmonary tuberculosis: a double-blind observational study"**  
+> **"Multi-Center Development and External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings"**  
 > *M. Farrel Aditya*  
 > Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia  
 > Preprint: [medRxiv (2026)](https://www.medrxiv.org) | Email: `farreladitya38@gmail.com`
@@ -161,7 +161,7 @@ tb-conformal-triage/
 ### 1. Clone Repository & Setup Environment
 
 ```bash
-git clone https://github.com/farreladitya/tb-conformal-triage.git
+git clone https://github.com/SeraKah-1/tb-conformal-triage.git
 cd tb-conformal-triage
 
 # Create Conda Environment
@@ -203,13 +203,13 @@ If this work, dataset splits, or safety architecture aids your medical AI resear
 
 ```bibtex
 @article{aditya2026tbconformal,
-  title={Calibration and external multi-center evaluation of a conformalized DenseNet-121 architecture for chest radiograph triage of pulmonary tuberculosis: a double-blind observational study},
+  title={Multi-Center Development and External Stress-Testing of an Auditable Conformal AI Safety Architecture for Tuberculosis Chest Radiograph Triage in Resource-Constrained Settings},
   author={Aditya, M. Farrel},
   journal={medRxiv},
   year={2026},
   publisher={Cold Spring Harbor Laboratory},
   note={Preprint deposited at medRxiv (DOI pending)},
-  url={https://www.medrxiv.org}
+  url={https://github.com/SeraKah-1/tb-conformal-triage}
 }
 ```
 
