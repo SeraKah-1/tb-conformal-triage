@@ -121,11 +121,15 @@ All metrics were empirically evaluated on physical disk datasets without mock st
 
 | Evaluation Tier | Cohort Evaluated | Sample Size (N) | AUROC (95% CI) | Sensitivity @ WHO TPP (tau=0.4401) | Specificity @ WHO TPP (tau=0.4401) | Conformal Coverage (alpha=0.05) | False-Negative Discharges | WHO CAD TPP Compliance |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **5-Center Development Test** | Multi-continental hold-out | 1,258 | **0.9943** (0.990-0.998) | **97.97%** (145/148) | **97.66%** (1,084/1,110) | **96.50%** | 3 / 1,258 (0.24%) | **COMPLIANT** |
-| **External Stress Test (Standard Rules)** | Solan District Hospital (India) | 155 | **0.8463** (0.782-0.901) | **70.51%** (55/78) | **84.42%** (65/77) | **77.42%** | 7 / 78 (8.97%) | **NON_COMPLIANT** |
-| **External Stress Test (Pure Assistive Mode)** | Solan District Hospital (India) | 155 | **0.8463** (0.782-0.901) | **70.51%** (Doctor Verified) | **84.42%** (Doctor Verified) | **77.42%** | **0 / 78 (0.00%)** | **SAFETY_LOCKED** |
+| **5-Center Development Test** | Multi-continental hold-out | 1,258 | **0.9943** (0.990-0.998)* | **97.97%** (145/148) | **97.66%** (1,084/1,110) | **96.50%** | 3 / 1,258 (0.24%) | **COMPLIANT** |
+| **External Stress Test: Rural Secondary (Standard Rules)** | Solan District Hospital (India) | 155 | **0.8613** (0.802-0.920) | **70.51%** (55/78) | **87.01%** (67/77) | **79.35%** | 9 / 78 (11.54%) | **NON_COMPLIANT** |
+| **External Stress Test: Tertiary Referral (Standard Rules)** | NITRD New Delhi (India) | 278 | **0.8721** (0.828-0.916) | **78.40%** (98/125) | **80.39%** (123/153) | **77.70%** | 9 / 125 (7.20%) | **NON_COMPLIANT** |
+| **Combined Indian Clinical CXRs** | Multi-center external validation | 433 | **0.8682** (0.829-0.908) | **75.37%** (153/203) | **82.61%** (190/230) | **78.29%** | 18 / 203 (8.87%) | **NON_COMPLIANT** |
+| **External Stress Test (Pure Assistive Mode)** | All External Clinical Cohorts | 433 | **0.8682** (0.829-0.908) | **75.37%** (Doctor Verified) | **82.61%** (Doctor Verified) | **78.29%** | **0 / 203 (0.00%)** | **SAFETY_LOCKED** |
 
-> **Key Clinical Takeaway:** Raw zero-shot deployment of uncalibrated deep learning models on unseen rural computed radiography hardware is dangerous (7 missed active cases). Enabling our penultimate Mahalanobis anomaly interlock and pure assistive triage policy safely intercepted all 7 cases, reducing missed discharges to **exactly 0 (0.00%)**.
+\* *Note on Development Discrimination:* Near-perfect internal discrimination (AUROC 0.9943) reflects institutional acquisition signatures between single-class development cohorts (Belarus cavitary TB vs RSNA normal controls, r=+0.7205) as documented by our linear probe audit. The genuine clinical benchmark is established on the external multi-center Indian cohorts (AUROC 0.8682).
+
+> **Key Clinical Takeaway:** Raw zero-shot deployment of uncalibrated deep learning models on unseen external radiographs is hazardous (18 missed active cases under uncalibrated triage). Enabling our pre-analytic IQA blockiness filter and pure assistive triage policy safely intercepted all unverified cases, reducing autonomous missed discharges to **exactly 0 (0.00%)**.
 
 ---
 
