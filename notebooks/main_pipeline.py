@@ -4,6 +4,7 @@ Target: Completely unseen independent cohorts (India TB Cohort)
 Hardware: Kaggle Cloud Dual Tesla T4 GPUs (machine_shape: NvidiaTeslaT4)
 Invariants: Strictly Frozen Weights, Zero Mock, Double-Blind Shuffling, IQA Guardrails,
             Split Conformal UQ (alpha=0.05), WHO CAD TPP Compliance Gate
+Official DOI: https://doi.org/10.21203/rs.3.rs-11034929/v1
 """
 
 import os

@@ -1,6 +1,7 @@
 # Eliminating False-Negative Discharges in Tuberculosis Screening: Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture
 
-[![Preprint](https://img.shields.io/badge/medRxiv-Preprint%20Pending-B31B1B.svg)](https://www.medrxiv.org)
+[![DOI](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
+[![Preprint: Research Square](https://img.shields.io/badge/Research%20Square-v1%20(Official)-B31B1B.svg)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C.svg)](https://pytorch.org/)
@@ -20,7 +21,7 @@ This repository provides the open-source implementation, serialized model weight
 > **"Eliminating False-Negative Discharges in Tuberculosis Screening: Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture"**  
 > *M. Farrel Aditya*  
 > Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia  
-> Preprint: [medRxiv (2026)](https://www.medrxiv.org) | Correspondence: `farreladitya38@gmail.com`
+> Preprint: [Research Square (2026)](https://doi.org/10.21203/rs.3.rs-11034929/v1) | DOI: `10.21203/rs.3.rs-11034929/v1` | Correspondence: `farreladitya38@gmail.com`
 
 ---
 
@@ -80,7 +81,7 @@ flowchart TD
         C_Fix --> D
         D --> E{"JPEG DCT Blockiness < 2.5?"}
         E -- "No (Severe Compression)" --> E_Warn["Flag: High Compression Artifact"]
-        E -- "Yes" --> F["Standardized Tensor (224x224x3)"]
+        E -- "Yes" --> F["Standardized Tensor (512x512x3)"]
         E_Warn --> F
     end
 
@@ -294,17 +295,16 @@ print(f"Clinical Recommendation:  {result['clinical_recommendation']}")
 
 ## Citation & Attribution
 
-If this methodology, model weights, or multi-cohort benchmark assists your research, please cite our preprint:
+If this methodology, model weights, or multi-cohort benchmark assists your research, please cite our official preprint:
 
 ```bibtex
 @article{aditya2026tbconformal,
   title={Eliminating False-Negative Discharges in Tuberculosis Screening: Multi-Cohort Development and Independent External Stress-Testing of an Auditable Conformal AI Safety Architecture},
   author={Aditya, M. Farrel},
-  journal={medRxiv},
+  journal={Research Square},
   year={2026},
-  publisher={Cold Spring Harbor Laboratory},
-  note={Preprint deposited at medRxiv (DOI pending)},
-  url={https://github.com/SeraKah-1/tb-conformal-triage}
+  doi={10.21203/rs.3.rs-11034929/v1},
+  url={https://doi.org/10.21203/rs.3.rs-11034929/v1}
 }
 ```
 
