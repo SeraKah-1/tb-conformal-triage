@@ -2,8 +2,8 @@
 ### Multi-Cohort Development, BioMedCLIP Distillation, and Independent External Stress-Testing
 
 [![Release: v2.0.0-distilled](https://img.shields.io/badge/Release-v2.0.0--distilled-059669.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/tag/v2.0.0-distilled)
-[![Live Demo: Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20Workstation-Hugging%20Face%20Space-yellow.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
-[![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-ZIP%20(Air--Gapped)-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
+[![Live Workstation: Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20Workstation-Hugging%20Face%20Space-yellow.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
+[![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-32.8%20MB%20ZIP-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
 [![Baseline: v1.0.0-researchsquare](https://img.shields.io/badge/Baseline-v1.0.0--researchsquare-0284C7.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/tree/v1.0.0-researchsquare)
 [![DOI: Paper 1 (Research Square)](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg?style=flat-square)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
 [![Paper 2: medRxiv Priority Locked](https://img.shields.io/badge/medRxiv-Submitted%20(BioMedCLIP%20Distillation)-B31B1B.svg?style=flat-square)](https://www.medrxiv.org)
@@ -16,52 +16,55 @@
 
 <div align="center">
 
-### PANDUAN PENGGUNAAN CEPAT (KLIK TOMBOL DI BAWAH):
+### Clinical Screening Workstation Quick Launch
 
 <a href="https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation">
-  <img src="https://img.shields.io/badge/%F0%9F%8C%90_BUKA_WORKSTATION_WEB_(GRATIS_%26_LANGSUNG_PAKAI)-KLIK_DI_SINI-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Buka Workstation Web" height="42">
+  <img src="https://img.shields.io/badge/%F0%9F%8C%90_LAUNCH_WEB_WORKSTATION-(FREE_%26_IN--BROWSER_WASM)-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Launch Web Workstation" height="42">
 </a>
 &nbsp;&nbsp;
 <a href="https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip">
-  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_UNDUH_PAKET_OFFLINE_FLASHDISK_(ZIP_32.8_MB)-KLIK_DI_SINI-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Unduh Paket Offline" height="42">
+  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_OFFLINE_USB_BUNDLE-(32.8_MB_ZIP)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Download Offline USB Bundle" height="42">
 </a>
 
 <br><br>
 
-| Jalur 1: Pasang ke Komputer / HP (PWA) | Jalur 2: Paket USB Komputer Offline (Puskesmas) |
+| Path A: In-Browser PWA (Zero Setup) | Path B: Air-Gapped USB Flash Drive (Offline Facilities) |
 | :--- | :--- |
-| **Langkah 1:** Buka tombol biru di atas via Chrome atau Edge.<br>**Langkah 2:** Klik tombol *"Pasang Aplikasi"* di layar.<br>**Langkah 3:** Selesai! Ikon muncul di Desktop, siap dipakai offline selamanya. | **Langkah 1:** Klik tombol hijau di atas untuk unduh file ZIP.<br>**Langkah 2:** Ekstrak file ZIP ke USB Flashdisk.<br>**Langkah 3:** Colok ke PC Puskesmas dan klik ganda `buka_aplikasi_offline.bat`. |
+| **Step 1:** Open the Web Workstation via Chrome, Edge, or any modern browser.<br>**Step 2:** Click *"Install Application"* on screen or in the browser URL bar.<br>**Step 3:** Launch directly from your Desktop icon. Model weights (26.9 MB) cache locally for permanent offline execution. | **Step 1:** Click the green button above to download the offline ZIP package (32.8 MB).<br>**Step 2:** Extract the archive directly onto a portable USB drive.<br>**Step 3:** Connect to the target clinical PC and double-click `buka_aplikasi_offline.bat` (Windows) or execute `buka_aplikasi_offline.sh` (Linux). |
 
 </div>
+
+> [!NOTE]
+> Detailed Indonesian deployment instructions for primary healthcare centers (Puskesmas) are maintained in [docs/PANDUAN_PUSKESMAS_ID.md](docs/PANDUAN_PUSKESMAS_ID.md).
 
 ---
 
 ## Executive Summary & Two-Stage Scientific Lineage
 
-Computer-aided detection (CAD) software for pulmonary tuberculosis (TB) on chest radiographs (CXRs) is endorsed by the World Health Organization (WHO) to address diagnostic shortages in high-burden regions. However, standard deep learning classifiers deployed with uncalibrated softmax scoring exhibit overconfidence under sensor hardware variations and acquisition artifacts, introducing severe risks of silent false-negative discharges.
+Computer-aided detection (CAD) software for pulmonary tuberculosis (TB) on chest radiographs (CXRs) is endorsed by the World Health Organization (WHO) to address diagnostic shortages in resource-constrained regions. However, standard deep learning classifiers deployed with uncalibrated softmax scoring exhibit overconfidence under sensor hardware variations, acquisition artifacts, and compression noise, introducing severe risks of silent false-negative triage errors.
 
-This repository provides the open-source implementation, serialized model weights, offline PWA workstation, and reproducibility pipeline for a coordinated two-stage scientific research program:
+This repository provides the open-source implementation, serialized model weights, offline WebAssembly Progressive Web App (PWA) workstation, and reproducibility pipeline for a coordinated two-stage scientific research program:
 
-* **Stage 1 (Paper 1 - Baseline Conformal Safety Architecture):**  
+* **Stage 1 (Paper 1: Baseline Conformal Safety Architecture):**  
   *"Selective Conformal AI Architecture for Tuberculosis Triage: Mitigating Sensor Shift and False-Negative Risks via Pre-Analytic Quality Assurance and Clinical Deferral Interlocks"*  
   Lead Investigator: M. Farrel Aditya (Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia)  
   Preprint: [Research Square (2026)](https://doi.org/10.21203/rs.3.rs-11034929/v1) | DOI: `10.21203/rs.3.rs-11034929/v1`  
-  Target Journal: *Biomedical Signal Processing and Control* (Elsevier, Scopus Q1, IF 5.1, $0 APC Subscription Track).
+  Target Journal: *Biomedical Signal Processing and Control* (Elsevier, Scopus Q1, IF 5.1).
 
-* **Stage 2 (Paper 2 - BioMedCLIP Tri-Loss Distillation Flagship):**  
+* **Stage 2 (Paper 2: BioMedCLIP Tri-Loss Distillation):**  
   *"Distilling Multimodal Biomedical Foundation Models for Edge Tuberculosis Screening: Client-Side WebAssembly Deployment and Conformal Clinical Abstention"*  
   Lead Investigator: M. Farrel Aditya (Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia)  
   Preprint: medRxiv (Submitted / Priority Locked)  
-  Target Journal: *Computers in Biology and Medicine* (Elsevier, Scopus Top Q1, IF 7.7, $0 APC Subscription Track).
+  Target Journal: *Computers in Biology and Medicine* (Elsevier, Scopus Top Q1, IF 7.7).
 
 ---
 
-## Dual-Model Lineage & Empirical Comparison (Model v9 vs Model v11)
+## Dual-Release Architecture & Benchmark Comparison
 
-To protect peer-review reproducibility for Paper 1 while delivering the breakthroughs of Paper 2, this repository implements a **Dual-Release Architecture**:
+To preserve peer-review reproducibility for Paper 1 while providing the complete artifacts for Paper 2, this repository implements a **Dual-Release Architecture**:
 
 * **Tag `v1.0.0-researchsquare` (Paper 1 Frozen Baseline):** Retains Model v9 (DenseNet-121 Supervised Baseline, 28.45 MB) matching the submitted manuscript bit-for-bit.
-* **Main Branch `v2.0.0-distilled` (Paper 2 Flagship Release):** Provides Model v11 (BioMedCLIP Tri-Loss Distilled Student, 26.90 MB ONNX / 30.15 MB PyTorch) via a clean, unified factory loader.
+* **Main Branch `v2.0.0-distilled` (Paper 2 Distilled Release):** Provides Model v11 (BioMedCLIP Tri-Loss Distilled Student, 26.90 MB ONNX / 30.15 MB PyTorch) via a unified factory loader.
 
 ### Head-to-Head Empirical Benchmark: Model v9 vs Model v11
 
@@ -77,68 +80,64 @@ To protect peer-review reproducibility for Paper 1 while delivering the breakthr
 
 ---
 
-## Scientific Provenance: Why Baseline Log v9 is Formally Retained
+## Scientific Provenance: Retention of Baseline Model v9
 
-Retaining the baseline logs of Model v9 alongside Model v11 is an intentional methodological requirement adhering to STARD-AI, TRIPOD+AI, and ICMJE standards:
+Retaining the baseline logs and weights of Model v9 alongside Model v11 is an intentional methodological protocol adhering to STARD-AI, TRIPOD+AI, and ICMJE standards:
 
-1. **Independent Reviewer Reproducibility:** Reviewers evaluating Paper 1 at *Biomedical Signal Processing and Control* must be able to clone the repository and verify the exact numerical outputs (India AUROC 0.8682, weights SHA-256 `d461fe07...`) reported in the submitted manuscript.
-2. **Quantification of the Distillation Leap (Before vs After):** Without the v9 log, Model v11's AUROC of 0.9497 on India and 0.8624 on Pakistan lacks comparative context. Prominently displaying the v9 baseline proves that the leap in performance is the direct result of BioMedCLIP multi-modal distillation, rather than arbitrary architectural tweaks.
-3. **Transparency Against Salami-Slicing & Cherry-Picking:** Reporting the catastrophic failure of Model v9 on Pakistan compression noise (0.4990, pure coin flip) demonstrates scientific honesty. It establishes that Model v11 directly solved a documented technical failure mode.
+1. **Independent Reviewer Reproducibility:** Reviewers evaluating Paper 1 at *Biomedical Signal Processing and Control* can verify the exact numerical outputs (India AUROC 0.8682, weights SHA-256 `d461fe07...`) reported in the submitted manuscript.
+2. **Direct Ablation Comparison:** Retaining the baseline demonstrates the empirical effect of distilling a multimodal biomedical foundation model (BioMedCLIP) into a lightweight vision student under identical test splits.
+3. **Methodological Transparency:** Disclosing baseline degradation under high compression (Pakistan dataset AUROC 0.4990, chance level) documents a known failure mode and confirms that Model v11 resolves this sensitivity (AUROC 0.8624).
 
 ---
 
 ## Offline Clinical Workstation (PWA & USB Portable Bundle)
 
-To solve the real-world operational challenges of rural community health centers (Puskesmas) in Indonesia (unstable 3G modems, power outages, and zero GPU infrastructure), the workstation is engineered as an **offline Progressive Web App (PWA)** that runs 100% in-browser RAM via WebAssembly SIMD.
-
-### Visual Architecture: One-Click Offline Installation ("Tombol Paling Gede")
+To address operational challenges in rural clinics and decentralized facilities with limited or absent network connectivity, the workstation is deployed as an **offline Progressive Web App (PWA)** executing entirely in client-side RAM via WebAssembly SIMD.
 
 ```
-+--------------------------------------------------------------------------------------------------+
-| [!] PERINGATAN REGULATORI SaMD (KEMENKES RI / WHO CAD TPP):                                     |
-| Software as a Medical Device (SaMD) Kelas B. Sistem ini dirancang untuk triase terarah,         |
-| BUKAN penegak diagnosis mutlak. Seluruh temuan wajib dikonfirmasi radiolog atau uji TCM GeneXpert.|
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-|   ############################################################################################   |
-|   #                                                                                          #   |
-|   #   [📥]  PASANG APLIKASI TRIASE TB OFFLINE KE KOMPUTER INI (27 MB)                        #   |
-|   #         Klik Sekali Di Sini - Langsung Jadi Ikon Desktop - 100% Berjalan Tanpa Internet   #   |
-|   #                                                                                          #   |
-|   ############################################################################################   |
-|                                                                                                  |
-|   +--------------------------+  +--------------------------+  +--------------------------+       |
-|   |  LANGKAH 1               |  |  LANGKAH 2               |  |  LANGKAH 3               |       |
-|   |  [ 1. KLIK TOMBOL BESAR ]|  |  [ 2. BUKA DARI DESKTOP ]|  |  [ 3. SERET FOTO RONTGEN ]|       |
-|   |  Pilih "Install / Pasang"|  |  Klik ikon TB Conformal |  |  Tarik file CXR ke layar, |       |
-|   |  pada pop-up browser     |  |  yang muncul di Desktop  |  |  hasil keluar 0.1 detik  |       |
-|   +--------------------------+  +--------------------------+  +--------------------------+       |
-|                                                                                                  |
-|   --------------------------------------------------------------------------------------------   |
-|   PILIHAN LAIN (UNTUK KOMPUTER PUSKESMAS TANPA KONEKSI INTERNET SAMA SEKALI):                    |
-|   [ Unduh Paket Offline Flashdisk (ZIP 32.8 MB) ]   [ Peluncur Windows (.BAT) ]                  |
-+--------------------------------------------------------------------------------------------------+
++-----------------------------------------------------------------------------------------+
+| [!] REGULATORY NOTICE: INVESTIGATIONAL SaMD (WHO CAD TPP / CLASS B)                    |
+| This software is designed for automated clinical triage and screening risk-stratification.|
+| It is NOT a standalone diagnostic instrument. All flagged suspect cases must be         |
+| confirmed via clinical radiologist review or rapid molecular testing (Xpert MTB/RIF).  |
++-----------------------------------------------------------------------------------------+
+|                                                                                         |
+|   +--------------------------+  +--------------------------+  +---------------------+   |
+|   | 1. Image Ingestion       |  | 2. Edge Pre-Analytic QA  |  | 3. WASM SIMD Engine |   |
+|   | Drag & drop CXR file     |->| Exposure & frequency     |->| ONNX Runtime Web    |   |
+|   | (PNG, JPEG, DICOM-export)|  | DCT artifact audit       |  | 77.5 ms CPU forward |   |
+|   +--------------------------+  +--------------------------+  +---------------------+   |
+|                                                                            |            |
+|   +--------------------------+  +--------------------------+               v            |
+|   | 5. Explainable Heatmap   |  | 4. Conformal Interlock   |  <------------+            |
+|   | HiResCAM 16x16 gradient  |<-| Calibrated P(TB) score   |                            |
+|   | localization overlay     |  | Safe set: Non-TB / Defer |                            |
+|   +--------------------------+  +--------------------------+                            |
+|                                                                                         |
++-----------------------------------------------------------------------------------------+
 ```
 
-* **Direct Download (Offline USB Flashdisk Bundle):** [TB_Triage_Portable_Offline_Bundle.zip (32.8 MB)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
+### Technical Highlights
+
+* **Direct Download (Offline USB Bundle):** [TB_Triage_Portable_Offline_Bundle.zip (32.8 MB)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
 * **Live In-Browser Workstation:** [Hugging Face Space (Ressshh/tb-conformal-triage-workstation)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
-* **Zero CDN Dependencies:** All runtime libraries (`ort.min.js`, `ort-wasm-simd.wasm`, KaTeX CSS and WOFF2 fonts) are bundled locally in `./vendor/`.
-* **Permanent Air-Gapped Cache:** Hardened Service Worker (`sw.js`) stores the 26.9 MB ONNX model directly inside the browser Cache API. Computers can be permanently disconnected from the internet after initial caching.
-* **0 ms Network Latency:** Bypasses remote backend server polling completely. All inferences execute directly inside the client CPU via WebAssembly SIMD (77.5 ms per scan).
-* **Clinical Data Privacy Compliance:** Complies with Indonesian Personal Data Protection Law (UU PDP No. 27/2022) and Permenkes No. 24/2022. Patient radiographs never leave volatile browser memory.
+* **Zero External Dependencies:** All runtime libraries (`ort.min.js`, `ort-wasm-simd.wasm`, KaTeX CSS and WOFF2 fonts) are bundled locally in `./vendor/`.
+* **Air-Gapped Cache:** Service Worker (`sw.js`) stores the 26.9 MB ONNX model directly inside browser Cache storage for permanent offline execution.
+* **Zero Network Latency:** Bypasses remote server calls entirely. Forward passes execute on the local CPU via WebAssembly SIMD (77.5 ms per radiograph).
+* **Clinical Data Privacy:** Radiographs never leave client volatile memory. Designed to align with healthcare privacy standards (such as Indonesian UU PDP No. 27/2022, Permenkes No. 24/2022, and HIPAA de-identification guidelines).
 * **Portable USB Bundle:** Self-contained archive (`TB_Triage_Portable_Offline_Bundle.zip`, 32.8 MB) with one-click launcher scripts (`buka_aplikasi_offline.bat` for Windows and `buka_aplikasi_offline.sh` for Linux) for zero-internet facilities.
 
 ---
 
 ## Quickstart: Python Unified Modular Factory
 
-The package provides a single entry point to instantiate either model engine cleanly:
+The package provides a unified factory function to instantiate either model version:
 
 ```python
 from tb_conformal_triage import create_triage_engine
 from PIL import Image
 
-# 1. Instantiate Paper 2 Flagship Distilled Engine (Default, Model v11)
+# 1. Instantiate Paper 2 Distilled Engine (Default, Model v11)
 engine_v11 = create_triage_engine(model_version="v11_distilled", device="cpu")
 
 # 2. Instantiate Paper 1 Baseline Engine (Model v9)
@@ -168,17 +167,19 @@ tb-conformal-triage/
 │   └── schemas.py                   # Pydantic data schemas
 ├── assets/                          # HiResCAM visual examples and STARD-AI flow diagram
 ├── configs/                         # Model configuration files
-├── docs/                            # Verification dossiers and reporting checklists
+├── docs/                            # Documentation and checklists
+│   └── PANDUAN_PUSKESMAS_ID.md      # Field deployment guide for Indonesian primary health centers
 ├── notebooks/                       # End-to-end evaluation and DeLong test pipeline
-├── tb_pwa_offline_workstation/      # 100% Offline Clinical PWA Workstation
-│   ├── index.html                   # Bento Grid clinical interface with Giant Install Button
+│   └── main_pipeline.py             # Reproducibility script
+├── tb_pwa_offline_workstation/      # Offline Clinical PWA Workstation
+│   ├── index.html                   # Bento Grid clinical workstation interface
 │   ├── manifest.json                # PWA standalone manifest
 │   ├── sw.js                        # Cache-First Service Worker
 │   ├── models/                      # Model v11 ONNX (tb_conformal_distilled_v11_cam.onnx)
 │   ├── vendor/                      # Bundled ONNX WASM & KaTeX fonts (Zero CDN)
 │   ├── static/                      # Modular CSS and JS controllers
-│   ├── buka_aplikasi_offline.bat    # One-click Windows portable launcher
-│   └── buka_aplikasi_offline.sh     # One-click Linux portable launcher
+│   ├── buka_aplikasi_offline.bat    # Windows portable launcher
+│   └── buka_aplikasi_offline.sh     # Linux portable launcher
 ├── CITATION.cff                     # Citation metadata with Research Square DOI
 ├── LICENSE                          # MIT License
 ├── requirements.txt                 # Minimum Python dependencies
@@ -189,7 +190,7 @@ tb-conformal-triage/
 
 ## Citation & Academic Attribution
 
-If you utilize this safety architecture, the BioMedCLIP distillation framework, or the offline PWA workstation in your research, please cite the corresponding studies:
+If you utilize this safety architecture, the BioMedCLIP distillation framework, or the offline PWA workstation in your research, please cite the corresponding preprints:
 
 ### Stage 1 (Baseline Safety Architecture):
 ```bibtex
@@ -203,7 +204,7 @@ If you utilize this safety architecture, the BioMedCLIP distillation framework, 
 }
 ```
 
-### Stage 2 (BioMedCLIP Distillation Flagship):
+### Stage 2 (BioMedCLIP Distillation):
 ```bibtex
 @article{aditya2026distilling,
   title={Distilling Multimodal Biomedical Foundation Models for Edge Tuberculosis Screening: Client-Side WebAssembly Deployment and Conformal Clinical Abstention},
