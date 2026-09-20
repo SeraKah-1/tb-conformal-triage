@@ -367,10 +367,13 @@ async function getOrtSession() {
         ort.env.wasm.numThreads = 1;
         ort.env.wasm.simd = true;
 
-        ortSession = await ort.InferenceSession.create('./models/tb_conformal_distilled_v11_cam.onnx', {
+        const modelUrl = (window.location.hostname.includes('hf.space') || window.location.hostname.includes('huggingface.co'))
+            ? 'https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/models/tb_conformal_distilled_v11_cam.onnx'
+            : './models/tb_conformal_distilled_v11_cam.onnx';
+        ortSession = await ort.InferenceSession.create(modelUrl, {
             executionProviders: ['wasm']
         });
-        console.log('[ORT] DenseNet-121 in-browser inference session ready.');
+        console.log('[ORT] DenseNet-121 in-browser inference session ready from:', modelUrl);
     } catch(err) {
         console.error('[ORT INIT ERROR]', err);
         throw err;

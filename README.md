@@ -1,15 +1,38 @@
 # Selective Conformal AI Architecture for Tuberculosis Triage
 ### Multi-Cohort Development, BioMedCLIP Distillation, and Independent External Stress-Testing
 
-[![Release: v2.0.0-distilled](https://img.shields.io/badge/Release-v2.0.0--distilled-059669.svg)](https://github.com/SeraKah-1/tb-conformal-triage/releases)
-[![Baseline: v1.0.0-researchsquare](https://img.shields.io/badge/Baseline-v1.0.0--researchsquare-0284C7.svg)](https://github.com/SeraKah-1/tb-conformal-triage/tree/v1.0.0-researchsquare)
-[![DOI: Paper 1 (Research Square)](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
-[![Paper 2: medRxiv Priority Locked](https://img.shields.io/badge/medRxiv-Submitted%20(BioMedCLIP%20Distillation)-B31B1B.svg)](https://www.medrxiv.org)
-[![Offline PWA: 100% Air-Gapped](https://img.shields.io/badge/Workstation-100%25%20Offline%20PWA%20(27%20MB)-purple.svg)](https://github.com/SeraKah-1/tb-conformal-triage#offline-clinical-workstation-pwa--usb-portable-bundle)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Hardware: Dual Tesla T4](https://img.shields.io/badge/Hardware-Dual%20Tesla%20T4%20(sm__75)-76B900.svg)](https://www.nvidia.com)
-[![Kaggle Dataset](https://img.shields.io/badge/Kaggle-Model%20Weights-20BEFF.svg)](https://www.kaggle.com/datasets/mfarreladitya/tb-conformal-model-v9-weights)
+[![Release: v2.0.0-distilled](https://img.shields.io/badge/Release-v2.0.0--distilled-059669.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/tag/v2.0.0-distilled)
+[![Live Demo: Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20Workstation-Hugging%20Face%20Space-yellow.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
+[![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-ZIP%20(Air--Gapped)-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
+[![Baseline: v1.0.0-researchsquare](https://img.shields.io/badge/Baseline-v1.0.0--researchsquare-0284C7.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/tree/v1.0.0-researchsquare)
+[![DOI: Paper 1 (Research Square)](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg?style=flat-square)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
+[![Paper 2: medRxiv Priority Locked](https://img.shields.io/badge/medRxiv-Submitted%20(BioMedCLIP%20Distillation)-B31B1B.svg?style=flat-square)](https://www.medrxiv.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://www.python.org/downloads/)
+[![Weights v11: Kaggle](https://img.shields.io/badge/Kaggle-Model%20Weights%20v11-20BEFF.svg?style=flat-square)](https://www.kaggle.com/datasets/mfarreladitya/tb-distilled-conformal-model-weights)
+[![Weights v9: Kaggle](https://img.shields.io/badge/Kaggle-Baseline%20Weights%20v9-grey.svg?style=flat-square)](https://www.kaggle.com/datasets/mfarreladitya/tb-conformal-model-v9-weights)
+
+---
+
+<div align="center">
+
+### PANDUAN PENGGUNAAN CEPAT (KLIK TOMBOL DI BAWAH):
+
+<a href="https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation">
+  <img src="https://img.shields.io/badge/%F0%9F%8C%90_BUKA_WORKSTATION_WEB_(GRATIS_%26_LANGSUNG_PAKAI)-KLIK_DI_SINI-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Buka Workstation Web" height="42">
+</a>
+&nbsp;&nbsp;
+<a href="https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip">
+  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_UNDUH_PAKET_OFFLINE_FLASHDISK_(ZIP_32.8_MB)-KLIK_DI_SINI-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Unduh Paket Offline" height="42">
+</a>
+
+<br><br>
+
+| Jalur 1: Pasang ke Komputer / HP (PWA) | Jalur 2: Paket USB Komputer Offline (Puskesmas) |
+| :--- | :--- |
+| **Langkah 1:** Buka tombol biru di atas via Chrome atau Edge.<br>**Langkah 2:** Klik tombol *"Pasang Aplikasi"* di layar.<br>**Langkah 3:** Selesai! Ikon muncul di Desktop, siap dipakai offline selamanya. | **Langkah 1:** Klik tombol hijau di atas untuk unduh file ZIP.<br>**Langkah 2:** Ekstrak file ZIP ke USB Flashdisk.<br>**Langkah 3:** Colok ke PC Puskesmas dan klik ganda `buka_aplikasi_offline.bat`. |
+
+</div>
 
 ---
 
@@ -97,7 +120,8 @@ To solve the real-world operational challenges of rural community health centers
 +--------------------------------------------------------------------------------------------------+
 ```
 
-### Key Workstation Technical Highlights:
+* **Direct Download (Offline USB Flashdisk Bundle):** [TB_Triage_Portable_Offline_Bundle.zip (32.8 MB)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
+* **Live In-Browser Workstation:** [Hugging Face Space (Ressshh/tb-conformal-triage-workstation)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
 * **Zero CDN Dependencies:** All runtime libraries (`ort.min.js`, `ort-wasm-simd.wasm`, KaTeX CSS and WOFF2 fonts) are bundled locally in `./vendor/`.
 * **Permanent Air-Gapped Cache:** Hardened Service Worker (`sw.js`) stores the 26.9 MB ONNX model directly inside the browser Cache API. Computers can be permanently disconnected from the internet after initial caching.
 * **0 ms Network Latency:** Bypasses remote backend server polling completely. All inferences execute directly inside the client CPU via WebAssembly SIMD (77.5 ms per scan).
