@@ -11,8 +11,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from iqa import evaluate_image_quality, auto_correct_image
-from ood import MahalanobisOODDetector
+try:
+    from .iqa import evaluate_image_quality, auto_correct_image
+    from .ood import MahalanobisOODDetector
+except ImportError:
+    from iqa import evaluate_image_quality, auto_correct_image
+    from ood import MahalanobisOODDetector
 
 # -------------------------------------------------------------
 # 1. STANDALONE DENSENET-121 ARCHITECTURE
@@ -109,6 +113,45 @@ class TBCXRClassifier(nn.Module):
     def get_target_layer(self):
         return self.backbone.features.denseblock4.denselayer16.conv2
 
+class DistilledTBCXRClassifier(nn.Module):
+    """Paper 2 Distilled Student Model: DenseNet-121 + MLP projection head + classifier."""
+    def __init__(self, num_classes=2, proj_dim=512):
+        super().__init__()
+        self.backbone = StandaloneDenseNet121(num_classes=1000)
+        self.backbone.classifier = nn.Sequential(
+            nn.Dropout(p=0.3),
+            nn.Linear(1024, num_classes)
+        )
+        self.proj_head = nn.Sequential(
+            nn.Linear(1024, proj_dim),
+            nn.LayerNorm(proj_dim),
+            nn.GELU(),
+            nn.Linear(proj_dim, proj_dim)
+        )
+
+    def forward(self, x, return_features: bool = False, return_proj: bool = False):
+        f = self.backbone.features(x)
+        out = F.relu(f, inplace=False)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        latents = torch.flatten(out, 1)
+        logits = self.backbone.classifier(latents)
+        if return_proj:
+            proj = self.proj_head(latents)
+            proj = F.normalize(proj, dim=-1)
+            return logits, proj, latents
+        if return_features:
+            return logits, latents
+        return logits
+
+    def extract_features(self, x):
+        f = self.backbone.features(x)
+        out = F.relu(f, inplace=False)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        return torch.flatten(out, 1)
+
+    def get_target_layer(self):
+        return self.backbone.features.denseblock4.denselayer16.conv2
+
 # -------------------------------------------------------------
 # 2. MODEL MANAGER & INFERENCE ENGINE
 # -------------------------------------------------------------
@@ -150,15 +193,28 @@ class TBTriageEngine:
             self.checkpoint_sha256 = hashlib.sha256(f.read()).hexdigest()
 
         ckpt = torch.load(self.checkpoint_path, map_location=self.device)
-        self.optimal_temperature = float(ckpt.get("optimal_temperature", 0.8349))
-        q_mondrian = ckpt.get("q_mondrian", {0: 0.2299, 1: 0.7413})
-        self.q0 = float(q_mondrian.get(0, 0.2299))
-        self.q1 = float(q_mondrian.get(1, 0.7413))
-        self.who_operating_point = float(ckpt.get("who_tpp_best_operating_point", 0.4401))
-
-        self.model = TBCXRClassifier(num_classes=2).to(self.device)
         sd = {k.replace("module.", ""): v for k, v in ckpt["model_state_dict"].items()}
-        self.model.load_state_dict(sd)
+
+        # Auto-detect Model Architecture: Model v11 (Distilled) vs Model v9 (Baseline)
+        if any("proj_head" in k for k in sd.keys()):
+            self.optimal_temperature = float(ckpt.get("optimal_temperature", 2.1162))
+            q_mondrian = ckpt.get("q_mondrian", {0: 0.2817, 1: 0.9551})
+            self.q0 = float(q_mondrian.get(0, 0.2817))
+            self.q1 = float(q_mondrian.get(1, 0.9551))
+            self.who_operating_point = float(ckpt.get("who_tpp_best_operating_point", 0.4401))
+            self.model = DistilledTBCXRClassifier(num_classes=2, proj_dim=512).to(self.device)
+            self.model.load_state_dict(sd, strict=True)
+            print(f"[MODEL ENGINE] Loaded Distilled Student DenseNet-121 (Model v11) - T={self.optimal_temperature:.4f}, q0={self.q0:.4f}, q1={self.q1:.4f}")
+        else:
+            self.optimal_temperature = float(ckpt.get("optimal_temperature", 0.8349))
+            q_mondrian = ckpt.get("q_mondrian", {0: 0.2299, 1: 0.7413})
+            self.q0 = float(q_mondrian.get(0, 0.2299))
+            self.q1 = float(q_mondrian.get(1, 0.7413))
+            self.who_operating_point = float(ckpt.get("who_tpp_best_operating_point", 0.4401))
+            self.model = TBCXRClassifier(num_classes=2).to(self.device)
+            self.model.load_state_dict(sd, strict=True)
+            print(f"[MODEL ENGINE] Loaded Baseline DenseNet-121 (Model v9) - T={self.optimal_temperature:.4f}, q0={self.q0:.4f}, q1={self.q1:.4f}")
+
         self.model.eval()
 
     def preprocess(self, pil_img: Image.Image, img_size: int = 512, iqa_result: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Image.Image]:
@@ -379,3 +435,63 @@ class TBTriageEngine:
             "allow_autonomous_release": effective_allow_autonomous,
             "hirescam_heatmap_base64": heatmap_b64
         }
+
+    # Ergonomic alias for quick clinical triage
+    triage_image = predict_and_triage
+
+
+# -------------------------------------------------------------
+# 3. UNIFIED MODULAR FACTORY LOADER (RAZOR CLAMP)
+# -------------------------------------------------------------
+def create_triage_engine(
+    model_version: str = "v11_distilled",
+    checkpoint_path: Optional[str] = None,
+    device: str = "cpu",
+    allow_autonomous_release: bool = False,
+    ood_reference_path: Optional[str] = None
+) -> TBTriageEngine:
+    """
+    Unified Modular Factory constructor for TB Conformal Triage Engine.
+    
+    Args:
+        model_version: "v11_distilled" (Paper 2 BioMedCLIP Tri-Loss Flagship) or 
+                       "v9_baseline" (Paper 1 DenseNet-121 Supervised Baseline).
+        checkpoint_path: Path to PyTorch model checkpoint (.pth). If None, resolves to default.
+        device: "cpu" or "cuda".
+        allow_autonomous_release: Whether autonomous release is permitted.
+        ood_reference_path: Optional path to Mahalanobis OOD reference centroids (.npz).
+    
+    Returns:
+        Configured and validated TBTriageEngine instance.
+    """
+    if checkpoint_path is None:
+        if model_version == "v11_distilled":
+            candidates = [
+                "/root/tb_distill_kaggle/output/tb_conformal_distilled_v11.pth",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "tb_conformal_distilled_v11.pth"),
+                "models/tb_conformal_distilled_v11.pth"
+            ]
+        elif model_version == "v9_baseline":
+            candidates = [
+                "/root/tb_results_v9/best_tb_conformal_model.pth",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "best_tb_conformal_model.pth"),
+                "models/best_tb_conformal_model.pth"
+            ]
+        else:
+            raise ValueError(f"Unknown model_version '{model_version}'. Must be 'v11_distilled' or 'v9_baseline'.")
+        
+        for cand in candidates:
+            if os.path.exists(cand):
+                checkpoint_path = cand
+                break
+        
+        if checkpoint_path is None:
+            checkpoint_path = candidates[0]
+            
+    return TBTriageEngine(
+        checkpoint_path=checkpoint_path,
+        device=device,
+        allow_autonomous_release=allow_autonomous_release,
+        ood_reference_path=ood_reference_path
+    )
+
