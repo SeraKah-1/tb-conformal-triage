@@ -1035,8 +1035,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         banner.classList.add('action-ood');
         if (badge) badge.innerText = t.actionOodBadge;
         if (title) title.innerText = t.actionOodTitle;
-        const dText = oodReport ? (' (D=' + oodReport.mahalanobis_distance.toFixed(2) + ' > ' + oodReport.threshold + ')') : '';
-        if (desc) desc.innerText = t.actionOodDesc + dText;
+        if (desc) desc.innerText = t.actionOodDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
         }
@@ -1064,7 +1063,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         banner.classList.add('action-referral');
         if (badge) badge.innerText = t.actionRefBadge;
         if (title) title.innerText = t.actionRefTitle;
-        if (desc) desc.innerText = warning ? (t.actionRefDesc + ' (' + warning + ')') : t.actionRefDesc;
+        if (desc) desc.innerText = t.actionRefDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
         }
@@ -1197,11 +1196,12 @@ async function startBatchProcessing() {
             const currentIndex = index++;
             const file = batchFiles[currentIndex];
 
+            const t = I18N_DICT[currentLang] || I18N_DICT.id;
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${currentIndex + 1}</td>
                 <td>${file.name}</td>
-                <td id="status-${currentIndex}">Processing...</td>
+                <td id="status-${currentIndex}">${t.batchStatusProcessing}</td>
                 <td id="prob-${currentIndex}">-</td>
                 <td id="action-${currentIndex}">-</td>
                 <td id="lat-${currentIndex}">-</td>
@@ -1215,7 +1215,7 @@ async function startBatchProcessing() {
                 if (data) {
                     batchResults[currentIndex] = data;
                     const isRejected = data.triage_action.startsWith('REJECT_') || data.predicted_class === 'Rejected';
-                    document.getElementById(`status-${currentIndex}`).innerText = isRejected ? 'REJECTED' : 'SUCCESS';
+                    document.getElementById(`status-${currentIndex}`).innerText = isRejected ? t.batchStatusRejected : t.batchStatusSuccess;
                     document.getElementById(`prob-${currentIndex}`).innerText = isRejected ? '0.0%' : (data.probability_tb * 100).toFixed(1) + '%';
                     document.getElementById(`action-${currentIndex}`).innerText = data.triage_action;
                     document.getElementById(`lat-${currentIndex}`).innerText = lat + ' ms';
@@ -1225,12 +1225,12 @@ async function startBatchProcessing() {
                     else refCount++;
                 } else {
                     batchResults[currentIndex] = null;
-                    document.getElementById(`status-${currentIndex}`).innerText = 'FAILED';
+                    document.getElementById(`status-${currentIndex}`).innerText = t.batchStatusFailed;
                     document.getElementById(`action-${currentIndex}`).innerText = 'Inference failed';
                 }
             } catch(e) {
                 batchResults[currentIndex] = null;
-                document.getElementById(`status-${currentIndex}`).innerText = 'ERROR';
+                document.getElementById(`status-${currentIndex}`).innerText = t.batchStatusFailed;
                 document.getElementById(`action-${currentIndex}`).innerText = e.message;
             }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TB-CXR Rapid Clinical Screening Workstation (100% Offline PWA)</title>
+    <title>Skrining Rontgen Dada Tuberkulosis (TB-CXR) - 100% Offline</title>
     <!-- Local Vendor: KaTeX for medical mathematical formulas (Zero CDN) -->
     <link rel="stylesheet" href="./vendor/katex/katex.min.css">
     <script defer src="./vendor/katex/katex.min.js"></script>
@@ -29,28 +29,28 @@
                         <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                 </div>
-                <h2 id="txt-modal-title" class="modal-title">Clinical Decision Support Notice &amp; Regulasi SaMD</h2>
+                <h2 id="txt-modal-title" class="modal-title">Pemberitahuan Pendukung Keputusan Medis (Triase Awal Rontgen Dada)</h2>
             </div>
             <div class="modal-body">
-                <p id="txt-modal-desc-1"><strong>Pemberitahuan Klinis &amp; Regulasi:</strong> Aplikasi ini adalah perangkat lunak pendukung keputusan klinis investigasional (Software as a Medical Device / SaMD Kelas B) yang dirancang untuk membantu tenaga kesehatan dan dokter menyaring dugaan tuberkulosis paru secara cepat pada foto rontgen dada (CXR).</p>
+                <p id="txt-modal-desc-1"><strong>Pemberitahuan Klinis:</strong> Aplikasi ini adalah asisten pendukung keputusan klinis untuk membantu dokter dan perawat menyaring dugaan Tuberkulosis paru secara cepat pada foto rontgen dada di fasyankes primer.</p>
                 <ul>
-                    <li id="txt-modal-point-1"><strong>Konfirmasi Diagnostik Wajib:</strong> Rekomendasi AI bertindak sebagai pemilah triase awal dan TIDAK PERNAH menggantikan evaluasi dokter radiolog atau uji bakteriologis definitif (TCM sputum GeneXpert / kultur).</li>
-                    <li id="txt-modal-point-2"><strong>Privasi Pasien 100% Offline:</strong> Seluruh citra rontgen diproses secara lokal di dalam memori RAM komputer ini tanpa pernah dikirim ke internet atau server pihak ketiga mana pun (mematuhi UU PDP No. 27/2022).</li>
+                    <li id="txt-modal-point-1"><strong>Konfirmasi Medis Wajib:</strong> Hasil sistem bertindak sebagai pemilah awal dan tidak pernah menggantikan pemeriksaan dokter serta uji laboratorium dahak (TCM GeneXpert / kultur).</li>
+                    <li id="txt-modal-point-2"><strong>Privasi Pasien 100% Terjamin:</strong> Seluruh foto rontgen diproses secara aman langsung di memori komputer Anda dan tidak pernah dikirim ke internet atau server pihak ketiga.</li>
                 </ul>
             </div>
             <div class="modal-agree-row">
                 <input type="checkbox" id="chk-disclaimer" onchange="toggleDisclaimerAccept()">
                 <label for="chk-disclaimer" id="txt-modal-agree">Saya mengonfirmasi bahwa saya adalah tenaga medis atau peneliti, dan memahami batasan klinis di atas.</label>
             </div>
-            <button id="btn-modal-accept" class="btn-modal-accept" disabled onclick="acceptDisclaimer()">Masuk ke Workstation Triase</button>
+            <button id="btn-modal-accept" class="btn-modal-accept" disabled onclick="acceptDisclaimer()">Mulai Pemeriksaan Rontgen</button>
         </div>
     </div>
 
     <div class="container">
-        <!-- SaMD Class B Regulatory Warning Bar -->
+        <!-- Clinical Guideline Warning Bar -->
         <div class="samd-regulatory-bar">
-            <span class="samd-regulatory-badge">SaMD KELAS B</span>
-            <span><strong>Peringatan Regulasi Klinis (Kemenkes RI / WHO CAD TPP):</strong> Sistem ini dirancang untuk triase komparatif terarah di faskes primer. Bukan penentu diagnosis mutlak tunggal. Seluruh temuan wajib diverifikasi dokter dan dikonfirmasi dengan uji sputum GeneXpert.</span>
+            <span class="samd-regulatory-badge">PANDUAN MEDIS</span>
+            <span><strong>Peringatan Klinis Resmi (Kemenkes RI / WHO CAD):</strong> Sistem ini adalah alat bantu pemilah awal di faskes primer, bukan penentu diagnosis akhir. Seluruh temuan wajib diperiksa dokter dan dikonfirmasi dengan uji dahak TCM (GeneXpert).</span>
         </div>
 
         <!-- Top Navigation -->
@@ -63,23 +63,23 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="brand-title" id="txt-brand-title">TB-CXR Clinical Screening Workstation</h1>
-                    <p class="brand-sub" id="txt-sub">BioMedCLIP Distilled Model v11 &bull; 100% Offline In-Browser WASM &bull; WHO CAD Calibrated</p>
+                    <h1 class="brand-title" id="txt-brand-title">Skrining Rontgen Dada Tuberkulosis (TB-CXR)</h1>
+                    <p class="brand-sub" id="txt-sub">Asisten Skrining Rontgen Dada Cepat &bull; 100% Offline Tanpa Internet &bull; Terkalibrasi Standar WHO</p>
                 </div>
             </div>
             <div class="nav-actions">
                 <span class="status-pill" style="background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.35); color: var(--color-normal);">
                     <span class="status-dot" style="background: var(--color-normal);"></span>
-                    <span id="txt-status" style="font-weight: 700;">🟢 OFFLINE LOKAL (ZERO-CLOUD)</span>
+                    <span id="txt-status" style="font-weight: 700;">🟢 AKTIF OFFLINE (AMAN TANPA INTERNET)</span>
                 </span>
                 <button class="btn-icon" onclick="toggleLanguage()">
                     <span style="font-weight: 700;" id="txt-lang-badge">ID</span>
                 </button>
                 <button class="btn-icon" onclick="toggleTheme()">
-                    <span id="txt-theme">Dark</span>
+                    <span id="txt-theme">Tema</span>
                 </button>
                 <button class="btn-icon" onclick="window.print()">
-                    <span id="txt-print">Print</span>
+                    <span id="txt-print">Cetak</span>
                 </button>
             </div>
         </header>
@@ -95,8 +95,8 @@
                     </svg>
                 </div>
                 <div class="hero-install-text-group">
-                    <div class="hero-install-title" id="txt-install-title">📥 PASANG APLIKASI TRIASE TB OFFLINE KE KOMPUTER INI (27 MB)</div>
-                    <div class="hero-install-subtitle" id="txt-install-sub">Klik Sekali Di Sini &bull; Otomatis Menjadi Ikon Aplikasi Desktop &bull; 100% Berjalan Permanen Tanpa Koneksi Internet</div>
+                    <div class="hero-install-title" id="txt-install-title">📥 PASANG APLIKASI SKRINING TB KE KOMPUTER INI (27 MB)</div>
+                    <div class="hero-install-subtitle" id="txt-install-sub">Klik Sekali Di Sini &bull; Otomatis Menjadi Ikon Desktop &bull; 100% Berjalan Permanen Tanpa Koneksi Internet</div>
                 </div>
             </button>
             <div class="install-steps-row">
@@ -106,11 +106,11 @@
                 </div>
                 <div class="step-card">
                     <span class="step-num">2</span>
-                    <div class="step-text"><strong>Buka Ikon dari Desktop</strong><br><span style="color: var(--text-muted);">Ikon TB Conformal Triage langsung siap di layar utama</span></div>
+                    <div class="step-text"><strong>Buka Ikon dari Desktop</strong><br><span style="color: var(--text-muted);">Ikon Skrining TB langsung siap di layar utama komputer</span></div>
                 </div>
                 <div class="step-card">
                     <span class="step-num">3</span>
-                    <div class="step-text"><strong>Seret Foto Rontgen</strong><br><span style="color: var(--text-muted);">Tarik file CXR ke layar, hasil triase keluar dalam 0.1 detik</span></div>
+                    <div class="step-text"><strong>Pilih / Seret Foto Rontgen</strong><br><span style="color: var(--text-muted);">Tarik foto rontgen dada ke layar, hasil skrining keluar seketika</span></div>
                 </div>
             </div>
         </div>
@@ -119,11 +119,11 @@
         <div class="mode-tabs">
             <button id="tab-single" class="mode-tab-btn active" onclick="switchMode('single')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                <span id="txt-tab-single">Triase Rontgen Tunggal</span>
+                <span id="txt-tab-single">Pemeriksaan Satu Pasien</span>
             </button>
             <button id="tab-batch" class="mode-tab-btn" onclick="switchMode('batch')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <span id="txt-tab-batch">Skrining Paralel Massal (Batch)</span>
+                <span id="txt-tab-batch">Skrining Banyak Pasien Sekaligus</span>
             </button>
         </div>
 
@@ -133,16 +133,16 @@
             <div class="panel-card">
                 <h3 class="card-title">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    Akuisisi Foto Rontgen
+                    Pilih / Masukkan Foto Rontgen Dada
                 </h3>
-                <p class="card-desc" id="txt-upload-desc">Mendukung format PNG dan JPEG (ekspor DICOM standar). Pra-pemrosesan persentil thorax otomatis.</p>
+                <p class="card-desc" id="txt-upload-desc">Mendukung file foto rontgen JPG atau PNG. Kecerahan dan kontras gambar disesuaikan secara otomatis.</p>
 
                 <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()">
                     <div class="drop-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </div>
-                    <div class="upload-title" id="txt-upload-title">Seret Foto Rontgen Dada ke Sini atau Klik untuk Memilih</div>
-                    <div class="upload-desc">Resolusi optimal: 512 x 512 hingga 4096 x 4096 px</div>
+                    <div class="upload-title" id="txt-upload-title">Pilih atau Tarik Foto Rontgen Dada ke Sini</div>
+                    <div class="upload-desc" id="txt-upload-sub">Bisa menggunakan file rontgen digital maupun foto langsung dari film rontgen.</div>
                     <input type="file" id="file-input" style="display: none;" accept="image/png,image/jpeg,image/webp">
                 </div>
 
@@ -155,29 +155,29 @@
 
                 <button id="btn-submit" class="btn-primary" disabled onclick="submitSingleTriage()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                    <span id="txt-btn-submit">Analisis Triase Rontgen</span>
+                    <span id="txt-btn-submit">Periksa Foto Rontgen</span>
                 </button>
 
                 <button class="btn-camera" onclick="captureCamera()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    <span id="txt-btn-camera">Ambil Foto Menggunakan Kamera</span>
+                    <span id="txt-btn-camera">Ambil Foto via Kamera Ponsel</span>
                 </button>
 
                 <!-- Verified Benchmark Samples -->
                 <div class="samples-section">
-                    <div class="samples-title" id="txt-samples-title">Kasus Klinis Uji Coba Terverifikasi</div>
+                    <div class="samples-title" id="txt-samples-title">Contoh Kasus Klinis Terverifikasi</div>
                     <div class="samples-grid">
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_active_tb.png')">
-                            <span id="sample-1-name">Kasus TB Aktif (Solan Rural)</span>
-                            <span style="color: var(--color-referral); font-weight: 700;">TB P=0.52</span>
+                            <span id="sample-1-name">Contoh 1: TB Aktif Jelas (Bercak Nyata)</span>
+                            <span style="color: var(--color-referral); font-weight: 700;">TB Aktif</span>
                         </button>
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_normal_control.png')">
-                            <span id="sample-2-name">Kontrol Normal (Sehat)</span>
-                            <span style="color: var(--color-normal); font-weight: 700;">NORM P=0.99</span>
+                            <span id="sample-2-name">Contoh 2: Pasien Sehat (Paru Bersih Normal)</span>
+                            <span style="color: var(--color-normal); font-weight: 700;">Normal</span>
                         </button>
                         <button class="sample-btn" onclick="loadBenchmarkCase('nitrd_apical_tb.png')">
-                            <span id="sample-3-name">Infiltrat Apikal (NITRD Delhi)</span>
-                            <span style="color: var(--color-referral); font-weight: 700;">TB P=0.52</span>
+                            <span id="sample-3-name">Contoh 3: TB Bercak Halus (Puncak Paru)</span>
+                            <span style="color: var(--color-referral); font-weight: 700;">TB Apikal</span>
                         </button>
                     </div>
                 </div>
@@ -192,17 +192,17 @@
                         <line x1="12" y1="8" x2="12" y2="12"></line>
                         <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <h4 style="font-size: 1.1rem; font-weight: 700;" id="txt-empty-title">Siap Menerima Foto Rontgen</h4>
+                    <h4 style="font-size: 1.1rem; font-weight: 700;" id="txt-empty-title">Siap Memeriksa Foto Rontgen</h4>
                     <p style="font-size: 0.85rem; margin-top: 6px; max-width: 420px; margin-left: auto; margin-right: auto;" id="txt-empty-desc">
-                        Unggah foto rontgen dada atau pilih salah satu kasus sampel di sebelah kiri untuk menjalankan analisis triase instan.
+                        Unggah foto rontgen dada atau pilih salah satu contoh kasus di sebelah kiri untuk menjalankan pemeriksaan triase instan.
                     </p>
                 </div>
 
                 <!-- Loading State -->
                 <div id="loading-state" style="display: none; padding: 100px 24px; text-align: center;">
                     <div style="display: inline-block; width: 44px; height: 44px; border: 4px solid var(--border-color); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                    <p id="txt-loading-title" style="margin-top: 16px; font-weight: 600; font-size: 0.95rem;">Menganalisis Radiograf Dada...</p>
-                    <p id="txt-loading-sub" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Mengeksekusi inferensi Model v11 WebAssembly &amp; menghasilkan heatmap lesi</p>
+                    <p id="txt-loading-title" style="margin-top: 16px; font-weight: 600; font-size: 0.95rem;">Memeriksa Foto Rontgen Dada...</p>
+                    <p id="txt-loading-sub" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Sedang meneliti corakan paru dan mencari tanda bercak TB aktif...</p>
                 </div>
                 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
@@ -225,12 +225,12 @@
                         <div class="viewer-header">
                             <div class="viewer-title-row">
                                 <span class="viewer-title" id="txt-viewer-title">Peta Deteksi Lesi Paru</span>
-                                <span class="viewer-badge" id="txt-viewer-badge">Suspek Lesi TB</span>
+                                <span class="viewer-badge" id="txt-viewer-badge">Area Curiga TB</span>
                             </div>
                             <div class="mode-toggle-group">
-                                <button id="btn-mode-orig" class="btn-toggle" onclick="setSliderMode('orig')">Rontgen Asli</button>
-                                <button id="btn-mode-split" class="btn-toggle active" onclick="setSliderMode('split')">Bagi 50%</button>
-                                <button id="btn-mode-heat" class="btn-toggle" onclick="setSliderMode('heat')">Heatmap Lesi</button>
+                                <button id="btn-mode-orig" class="btn-toggle" onclick="setSliderMode('orig')">Foto Asli</button>
+                                <button id="btn-mode-split" class="btn-toggle active" onclick="setSliderMode('split')">Bagi Dua (Geser)</button>
+                                <button id="btn-mode-heat" class="btn-toggle" onclick="setSliderMode('heat')">Sorot Bercak</button>
                             </div>
                         </div>
 
@@ -247,8 +247,8 @@
                         <input type="range" id="slider-control" class="slider-input-range" min="0" max="100" value="50" oninput="onSliderMove(this.value)">
 
                         <div class="slider-legend-row">
-                            <span id="txt-legend-left">&larr; Radiograf Asli (Anatomi Thorax)</span>
-                            <span id="txt-legend-right">Heatmap Lesi HiResCAM &rarr;</span>
+                            <span id="txt-legend-left">&larr; Foto Rontgen Asli (Anatomi)</span>
+                            <span id="txt-legend-right">Area Curiga TB (Warna) &rarr;</span>
                         </div>
                     </div>
 
@@ -256,36 +256,36 @@
                     <div class="prob-section">
                         <div class="prob-card">
                             <div class="prob-header-row">
-                                <span class="prob-title" id="txt-prob-tb">Skor Risiko TB</span>
+                                <span class="prob-title" id="txt-prob-tb">Tingkat Risiko TB</span>
                                 <span id="val-prob-tb" class="prob-num" style="color: var(--color-tb);">0.00%</span>
                             </div>
                             <div class="prob-bar-track">
                                 <div id="bar-prob-tb" class="prob-bar-fill tb" style="width: 0%;"></div>
                             </div>
-                            <div class="prob-subtext" id="txt-prob-tb-sub">Ambang Batas Keputusan Operasional: 44.0%</div>
+                            <div class="prob-subtext" id="txt-prob-tb-sub">Batas anjuran tes dahak TCM: jika risiko di atas 44.0%</div>
                         </div>
 
                         <div class="prob-card">
                             <div class="prob-header-row">
-                                <span class="prob-title" id="txt-prob-norm">Keyakinan Normal</span>
+                                <span class="prob-title" id="txt-prob-norm">Keyakinan Paru Bersih</span>
                                 <span id="val-prob-norm" class="prob-num" style="color: var(--color-normal);">0.00%</span>
                             </div>
                             <div class="prob-bar-track">
                                 <div id="bar-prob-norm" class="prob-bar-fill normal" style="width: 0%;"></div>
                             </div>
-                            <div class="prob-subtext" id="txt-prob-norm-sub">Ambang Batas Rule-Out WHO: &ge; 95.0%</div>
+                            <div class="prob-subtext" id="txt-prob-norm-sub">Standar acuan WHO paru sehat: keyakinan di atas 95.0%</div>
                         </div>
                     </div>
 
                     <!-- Progressive Disclosure: Collapsible Technical & Algorithmic Audit Details -->
                     <details class="tech-audit-details">
                         <summary class="tech-audit-summary">
-                            <span id="txt-tech-summary-title">Rincian Audit Algoritmik &amp; Regulasi (Progressive Disclosure)</span>
+                            <span id="txt-tech-summary-title">Rincian Teknis &amp; Audit Regulasi AI (Untuk Dokter &amp; Auditor)</span>
                             <span class="tech-audit-icon">&plus;</span>
                         </summary>
                         <div class="meta-matrix" style="margin-top: 14px;">
                             <div class="meta-cell">
-                                <div class="meta-label" id="lbl-set">Set Prediksi Konformal</div>
+                                <div class="meta-label" id="lbl-set">Himpunan Prediksi Konformal</div>
                                 <div id="met-set" class="meta-value">{Normal}</div>
                             </div>
                             <div class="meta-cell">
@@ -293,11 +293,11 @@
                                 <div id="met-action" class="meta-value" style="font-size: 0.8rem;">AUTO_RELEASE_NORMAL</div>
                             </div>
                             <div class="meta-cell">
-                                <div class="meta-label" id="lbl-ood">Kualitas Distribusi Citra</div>
+                                <div class="meta-label" id="lbl-ood">Validitas Distribusi Citra</div>
                                 <div id="met-ood" class="meta-value" style="color: var(--color-normal); font-size: 0.8rem;">IN-DISTRIBUTION</div>
                             </div>
                             <div class="meta-cell">
-                                <div class="meta-label" id="lbl-lat">Kecepatan Inferensi WASM</div>
+                                <div class="meta-label" id="lbl-lat">Kecepatan Proses Lokal</div>
                                 <div id="met-lat" class="meta-value">0 ms</div>
                             </div>
                         </div>
@@ -311,16 +311,16 @@
             <div class="panel-card" style="margin-bottom: 20px;">
                 <h3 class="card-title">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                    Skrining Massal Rontgen Dada (Batch)
+                    Skrining Banyak Foto Sekaligus (Massal)
                 </h3>
-                <p class="card-desc" id="txt-batch-drop-desc">Diproses secara asinkronus langsung di memori komputer Anda. Agregasi KPI waktu nyata dan ekspor daftar pasien ke CSV.</p>
+                <p class="card-desc" id="txt-batch-drop-desc">Periksa puluhan foto rontgen dalam hitungan detik langsung di komputer ini tanpa internet. Hasil terangkum otomatis dan dapat diunduh ke tabel CSV/Excel.</p>
 
                 <div id="batch-drop-zone" class="drop-zone" onclick="document.getElementById('batch-file-input').click()">
                     <div class="drop-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     </div>
-                    <div class="upload-title" id="txt-batch-drop-title">Seret Kumpulan Foto Rontgen atau Folder ke Sini</div>
-                    <div class="upload-desc" id="batch-queue-status">Belum ada radiograf dalam antrean.</div>
+                    <div class="upload-title" id="txt-batch-drop-title">Tarik Kumpulan Foto Rontgen atau Folder ke Sini</div>
+                    <div class="upload-desc" id="batch-queue-status">Belum ada foto rontgen dalam antrean.</div>
                     <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/png,image/jpeg,image/webp">
                 </div>
 
@@ -343,19 +343,19 @@
             <!-- Batch KPIs -->
             <div class="batch-kpi-bar">
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-total">Total Antrean</div>
+                    <div class="kpi-label" id="txt-kpi-total">Total Foto Diperiksa</div>
                     <div class="kpi-val" id="kpi-total-val">0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-normal">Normal (Pelepasan Asistif)</div>
+                    <div class="kpi-label" id="txt-kpi-normal">Paru Bersih (Aman)</div>
                     <div class="kpi-val normal" id="kpi-normal-val">0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-tb">Suspek TB (Urgensi)</div>
+                    <div class="kpi-label" id="txt-kpi-tb">Curiga TB (Tes Dahak)</div>
                     <div class="kpi-val tb" id="kpi-tb-val">0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-ref">Rujuk Dokter (Inkonklusif)</div>
+                    <div class="kpi-label" id="txt-kpi-ref">Perlu Dicek Dokter</div>
                     <div class="kpi-val ref" id="kpi-ref-val">0</div>
                 </div>
             </div>
@@ -368,14 +368,14 @@
                             <th>#</th>
                             <th>Nama Berkas</th>
                             <th>Status</th>
-                            <th>P(TB)</th>
-                            <th>Tindakan Klinis</th>
-                            <th>Latensi</th>
+                            <th>Risiko TB (%)</th>
+                            <th>Tindakan Medis</th>
+                            <th>Waktu Proses</th>
                         </tr>
                     </thead>
                     <tbody id="batch-tbody">
                         <tr>
-                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada hasil skrining batch.</td>
+                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada hasil skrining massal.</td>
                         </tr>
                     </tbody>
                 </table>
