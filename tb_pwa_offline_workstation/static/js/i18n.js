@@ -82,7 +82,14 @@ const I18N_DICT = {
         batchStatusProcessing: "Processing...",
         batchStatusRejected: "Rejected",
         batchStatusSuccess: "Completed",
-        batchStatusFailed: "Failed"
+        batchStatusFailed: "Failed",
+        btnSingleReset: "New Examination",
+        btnBatchReset: "Reset / New Batch",
+        btnBatchReturn: "Return to Batch Roster",
+        colAction: "Action",
+        btnInspect: "View Heatmap",
+        batchQueueEmpty: "No radiographs in queue.",
+        batchTableEmpty: "No batch screening results yet."
     },
     id: {
         brandTitle: "Skrining Rontgen Dada Tuberkulosis (TB-CXR)",
@@ -163,7 +170,14 @@ const I18N_DICT = {
         batchStatusProcessing: "Sedang Memeriksa...",
         batchStatusRejected: "Ditolak (Foto Rusak)",
         batchStatusSuccess: "Selesai",
-        batchStatusFailed: "Gagal"
+        batchStatusFailed: "Gagal",
+        btnSingleReset: "Pemeriksaan Pasien Baru",
+        btnBatchReset: "Reset / Kloter Baru",
+        btnBatchReturn: "Kembali ke Daftar Skrining Massal",
+        colAction: "Aksi",
+        btnInspect: "Buka Heatmap",
+        batchQueueEmpty: "Belum ada foto rontgen dalam antrean.",
+        batchTableEmpty: "Belum ada hasil skrining massal."
     }
 };
 
@@ -278,6 +292,14 @@ function applyLanguage(lang) {
     if (kpiTb) kpiTb.innerText = t.kpiTb;
     const kpiRef = document.getElementById('txt-kpi-ref');
     if (kpiRef) kpiRef.innerText = t.kpiRef;
+    const btnSingleReset = document.getElementById('txt-btn-single-reset');
+    if (btnSingleReset) btnSingleReset.innerText = t.btnSingleReset;
+    const btnBatchReset = document.getElementById('txt-btn-batch-reset');
+    if (btnBatchReset) btnBatchReset.innerText = t.btnBatchReset;
+    const btnBatchReturn = document.getElementById('txt-btn-batch-return');
+    if (btnBatchReturn) btnBatchReturn.innerText = t.btnBatchReturn;
+    const batchThAction = document.getElementById('batch-th-action');
+    if (batchThAction) batchThAction.innerText = t.colAction;
 
     // Modal
     const modalTitle = document.getElementById('txt-modal-title');

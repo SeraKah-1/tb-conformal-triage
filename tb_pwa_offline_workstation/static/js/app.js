@@ -13,26 +13,61 @@ if ('serviceWorker' in navigator) {
 
 // PWA Installation Handling ("Tombol Paling Gede")
 let deferredPrompt = null;
+
+function isPWAStandaloneOrInstalled() {
+    return Boolean(
+        (window.matchMedia && (
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            window.matchMedia('(display-mode: minimal-ui)').matches
+        )) ||
+        window.navigator.standalone === true ||
+        safeStorage.getItem('tb_pwa_installed') === 'true'
+    );
+}
+
+function syncPWAInstallBanner() {
+    const banner = document.getElementById('pwa-install-banner');
+    if (!banner) return;
+    if (isPWAStandaloneOrInstalled()) {
+        banner.style.display = 'none';
+    }
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
     console.log('[PWA] beforeinstallprompt captured.');
+    if (!isPWAStandaloneOrInstalled()) {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.style.display = 'block';
+    }
 });
 
 window.addEventListener('appinstalled', () => {
     console.log('[PWA] Application successfully installed.');
     deferredPrompt = null;
-    const title = document.getElementById('txt-install-title');
-    if (title) title.innerText = '✅ APLIKASI TELAH TERPASANG DI KOMPUTER INI (100% OFFLINE)';
-    const sub = document.getElementById('txt-install-sub');
-    if (sub) sub.innerText = 'Buka langsung melalui ikon TB Conformal Triage di Desktop kapan saja tanpa koneksi internet.';
+    safeStorage.setItem('tb_pwa_installed', 'true');
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.style.display = 'none';
 });
+
+if (window.matchMedia) {
+    try {
+        window.matchMedia('(display-mode: standalone)').addEventListener('change', syncPWAInstallBanner);
+    } catch(e) {}
+}
 
 async function triggerPWAInstall() {
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         console.log('[PWA] User choice outcome:', outcome);
+        if (outcome === 'accepted') {
+            safeStorage.setItem('tb_pwa_installed', 'true');
+            const banner = document.getElementById('pwa-install-banner');
+            if (banner) banner.style.display = 'none';
+        }
         deferredPrompt = null;
     } else {
         alert('Panduan Pemasangan Aplikasi Offline:\n1. Pada Microsoft Edge atau Google Chrome, klik ikon menu (titik tiga di kanan atas layar).\n2. Pilih "Apps" (Aplikasi) -> "Install this site as an app" (Pasang situs ini sebagai aplikasi).\n3. Ikon "TB Triage" akan otomatis terpasang di Desktop komputer Anda dan siap dipakai tanpa internet.');
@@ -75,12 +110,13 @@ function toggleTheme() {
     if (btn) btn.innerText = currentTheme === 'light' ? 'Dark' : 'Light';
 }
 
-// 2. Mode Switching
+// 2. Mode Switching & Single State Management
 function switchMode(mode) {
     const tabSingle = document.getElementById('tab-single');
     const tabBatch = document.getElementById('tab-batch');
     const panelSingle = document.getElementById('panel-single');
     const panelBatch = document.getElementById('panel-batch');
+    const returnBtn = document.getElementById('btn-batch-return');
 
     if (mode === 'single') {
         tabSingle.classList.add('active');
@@ -92,7 +128,63 @@ function switchMode(mode) {
         tabSingle.classList.remove('active');
         panelSingle.style.display = 'none';
         panelBatch.style.display = 'block';
+        if (returnBtn) returnBtn.style.display = 'none';
     }
+}
+
+function returnToBatchMode() {
+    switchMode('batch');
+}
+
+function resetSingleTriage() {
+    selectedFile = null;
+    originalImageSrc = null;
+    currentResultData = null;
+    activeTriageAction = null;
+    activeTriageWarning = null;
+    isSubmitting = false;
+
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.value = '';
+    const fileStatus = document.getElementById('file-status');
+    if (fileStatus) fileStatus.style.display = 'none';
+    const submitBtn = document.getElementById('btn-submit');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const returnBtn = document.getElementById('btn-batch-return');
+    if (returnBtn) returnBtn.style.display = 'none';
+
+    const imgBase = document.getElementById('img-base');
+    const imgHeat = document.getElementById('img-heat');
+    if (imgBase) imgBase.src = '';
+    if (imgHeat) imgHeat.src = '';
+
+    const valTb = document.getElementById('val-prob-tb');
+    const valNorm = document.getElementById('val-prob-norm');
+    const barTb = document.getElementById('bar-prob-tb');
+    const barNorm = document.getElementById('bar-prob-norm');
+    if (valTb) valTb.innerText = '0.00%';
+    if (valNorm) valNorm.innerText = '0.00%';
+    if (barTb) barTb.style.width = '0%';
+    if (barNorm) barNorm.style.width = '0%';
+
+    const metSet = document.getElementById('met-set');
+    const metAction = document.getElementById('met-action');
+    const metOod = document.getElementById('met-ood');
+    const metLat = document.getElementById('met-lat');
+    if (metSet) metSet.innerText = '-';
+    if (metAction) metAction.innerText = '-';
+    if (metOod) metOod.innerText = '-';
+    if (metLat) metLat.innerText = '0 ms';
+
+    const emptyBox = document.getElementById('empty-state');
+    const resultsBox = document.getElementById('results-display');
+    const loadingBox = document.getElementById('loading-state');
+    if (emptyBox) emptyBox.style.display = 'block';
+    if (resultsBox) resultsBox.style.display = 'none';
+    if (loadingBox) loadingBox.style.display = 'none';
+
+    setSliderMode('split');
 }
 
 // 3. Disclaimer Modal
@@ -1106,8 +1198,13 @@ function queueBatchFiles(files) {
     const statusLabel = document.getElementById('batch-queue-status');
     const startBtn = document.getElementById('btn-batch-start');
     const kpiTotal = document.getElementById('kpi-total-val');
+    const t = I18N_DICT[currentLang] || I18N_DICT.id;
 
-    if (statusLabel) statusLabel.innerText = batchFiles.length + ' radiographs queued for parallel triage.';
+    if (statusLabel) {
+        statusLabel.innerText = currentLang === 'en'
+            ? `${batchFiles.length} radiographs queued for parallel screening.`
+            : `${batchFiles.length} foto rontgen siap untuk diskrining massal.`;
+    }
     if (kpiTotal) kpiTotal.innerText = batchFiles.length;
     if (startBtn) startBtn.disabled = batchFiles.length === 0;
 }
@@ -1198,6 +1295,8 @@ async function startBatchProcessing() {
 
             const t = I18N_DICT[currentLang] || I18N_DICT.id;
             const row = document.createElement('tr');
+            row.id = `batch-row-${currentIndex}`;
+            row.className = 'clickable-row';
             row.innerHTML = `
                 <td>${currentIndex + 1}</td>
                 <td>${file.name}</td>
@@ -1205,6 +1304,7 @@ async function startBatchProcessing() {
                 <td id="prob-${currentIndex}">-</td>
                 <td id="action-${currentIndex}">-</td>
                 <td id="lat-${currentIndex}">-</td>
+                <td id="opt-${currentIndex}">-</td>
             `;
             if (tbody) tbody.appendChild(row);
 
@@ -1215,23 +1315,37 @@ async function startBatchProcessing() {
                 if (data) {
                     batchResults[currentIndex] = data;
                     const isRejected = data.triage_action.startsWith('REJECT_') || data.predicted_class === 'Rejected';
-                    document.getElementById(`status-${currentIndex}`).innerText = isRejected ? t.batchStatusRejected : t.batchStatusSuccess;
-                    document.getElementById(`prob-${currentIndex}`).innerText = isRejected ? '0.0%' : (data.probability_tb * 100).toFixed(1) + '%';
-                    document.getElementById(`action-${currentIndex}`).innerText = data.triage_action;
-                    document.getElementById(`lat-${currentIndex}`).innerText = lat + ' ms';
+                    const statusCell = document.getElementById(`status-${currentIndex}`);
+                    const probCell = document.getElementById(`prob-${currentIndex}`);
+                    const actionCell = document.getElementById(`action-${currentIndex}`);
+                    const latCell = document.getElementById(`lat-${currentIndex}`);
+                    const optCell = document.getElementById(`opt-${currentIndex}`);
+
+                    if (statusCell) statusCell.innerText = isRejected ? t.batchStatusRejected : t.batchStatusSuccess;
+                    if (probCell) probCell.innerText = isRejected ? '0.0%' : (data.probability_tb * 100).toFixed(1) + '%';
+                    if (actionCell) actionCell.innerText = data.triage_action;
+                    if (latCell) latCell.innerText = lat + ' ms';
+                    if (optCell) {
+                        optCell.innerHTML = `<button class="btn-table-inspect" onclick="inspectBatchItem(${currentIndex}); event.stopPropagation();">👁️ ${t.btnInspect || 'Buka'}</button>`;
+                    }
+                    row.onclick = () => inspectBatchItem(currentIndex);
 
                     if (data.triage_action === 'AUTO_RELEASE_NORMAL') normalCount++;
                     else if (data.triage_action === 'AUTO_FLAG_TB_URGENT') tbCount++;
                     else refCount++;
                 } else {
                     batchResults[currentIndex] = null;
-                    document.getElementById(`status-${currentIndex}`).innerText = t.batchStatusFailed;
-                    document.getElementById(`action-${currentIndex}`).innerText = 'Inference failed';
+                    const statusCell = document.getElementById(`status-${currentIndex}`);
+                    const actionCell = document.getElementById(`action-${currentIndex}`);
+                    if (statusCell) statusCell.innerText = t.batchStatusFailed;
+                    if (actionCell) actionCell.innerText = 'Inference failed';
                 }
             } catch(e) {
                 batchResults[currentIndex] = null;
-                document.getElementById(`status-${currentIndex}`).innerText = t.batchStatusFailed;
-                document.getElementById(`action-${currentIndex}`).innerText = e.message;
+                const statusCell = document.getElementById(`status-${currentIndex}`);
+                const actionCell = document.getElementById(`action-${currentIndex}`);
+                if (statusCell) statusCell.innerText = t.batchStatusFailed;
+                if (actionCell) actionCell.innerText = e.message;
             }
 
             completed++;
@@ -1252,6 +1366,78 @@ async function startBatchProcessing() {
     isBatchRunning = false;
     if (startBtn) startBtn.disabled = false;
     if (csvBtn) csvBtn.disabled = batchResults.filter(Boolean).length === 0;
+}
+
+function inspectBatchItem(index) {
+    const file = batchFiles[index];
+    const data = batchResults[index];
+    if (!file || !data) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        selectedFile = file;
+        originalImageSrc = e.target.result;
+
+        // Switch tab to single patient mode
+        switchMode('single');
+
+        // Update file info labels in single mode
+        const nameLabel = document.getElementById('file-name-label');
+        const sizeLabel = document.getElementById('file-size-label');
+        const statusBox = document.getElementById('file-status');
+        const submitBtn = document.getElementById('btn-submit');
+        if (nameLabel) nameLabel.innerText = `${file.name} (Kloter #${index + 1})`;
+        if (sizeLabel) sizeLabel.innerText = (file.size / 1024).toFixed(1) + ' KB';
+        if (statusBox) statusBox.style.display = 'block';
+        if (submitBtn) submitBtn.disabled = false;
+
+        // Show batch return button
+        const returnBtn = document.getElementById('btn-batch-return');
+        if (returnBtn) returnBtn.style.display = 'inline-flex';
+
+        if (data.is_rejection || (data.triage_action && data.triage_action.startsWith('REJECT_'))) {
+            renderRejectionResults(data.filename, data.iqa_report);
+        } else {
+            renderSingleResults(data);
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    reader.readAsDataURL(file);
+}
+
+function resetBatchTriage() {
+    if (isBatchRunning) return;
+    batchFiles = [];
+    batchResults = [];
+    
+    const batchInput = document.getElementById('batch-file-input');
+    if (batchInput) batchInput.value = '';
+    const statusLabel = document.getElementById('batch-queue-status');
+    const t = I18N_DICT[currentLang] || I18N_DICT.id;
+    if (statusLabel) statusLabel.innerText = t.batchQueueEmpty || 'Belum ada foto rontgen dalam antrean.';
+    
+    const startBtn = document.getElementById('btn-batch-start');
+    const csvBtn = document.getElementById('btn-batch-csv');
+    const progressBox = document.getElementById('batch-progress-box');
+    const progressBar = document.getElementById('batch-progress-bar');
+    if (startBtn) startBtn.disabled = true;
+    if (csvBtn) csvBtn.disabled = true;
+    if (progressBox) progressBox.style.display = 'none';
+    if (progressBar) progressBar.style.width = '0%';
+
+    const kpiTotal = document.getElementById('kpi-total-val');
+    const kpiNorm = document.getElementById('kpi-normal-val');
+    const kpiTb = document.getElementById('kpi-tb-val');
+    const kpiRef = document.getElementById('kpi-ref-val');
+    if (kpiTotal) kpiTotal.innerText = '0';
+    if (kpiNorm) kpiNorm.innerText = '0';
+    if (kpiTb) kpiTb.innerText = '0';
+    if (kpiRef) kpiRef.innerText = '0';
+
+    const tbody = document.getElementById('batch-tbody');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">${t.batchTableEmpty || 'Belum ada hasil skrining massal.'}</td></tr>`;
+    }
 }
 
 function exportBatchCsv() {
@@ -1279,6 +1465,7 @@ function exportBatchCsv() {
 
 // 9. Initialization
 document.addEventListener('DOMContentLoaded', function() {
+    syncPWAInstallBanner();
     checkDisclaimerStatus();
     initSingleFileHandlers();
     initBatchHandlers();

@@ -208,6 +208,18 @@
 
                 <!-- Results Display -->
                 <div id="results-display" class="results-container">
+                    <!-- Single Mode Results Action Bar (Reset / Batch Return) -->
+                    <div class="results-action-bar" style="display: flex; justify-content: flex-end; margin-bottom: 12px; gap: 8px;">
+                        <button id="btn-batch-return" class="btn-reset-action" style="display: none;" onclick="returnToBatchMode()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <span id="txt-btn-batch-return">Kembali ke Daftar Skrining Massal</span>
+                        </button>
+                        <button id="btn-single-reset" class="btn-reset-action" onclick="resetSingleTriage()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span id="txt-btn-single-reset">Pemeriksaan Pasien Baru</span>
+                        </button>
+                    </div>
+
                     <!-- Action Idiograph Banner (Tri-Color Visual Directive) -->
                     <div id="idiograph-banner" class="idiograph-banner">
                         <div class="action-icon-box" id="action-icon-container">
@@ -324,12 +336,16 @@
                     <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/png,image/jpeg,image/webp">
                 </div>
 
-                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;">
                     <button id="btn-batch-start" class="btn-primary" style="margin-top: 0;" disabled onclick="startBatchProcessing()">
                         <span id="txt-btn-batch-start">Mulai Skrining Massal</span>
                     </button>
                     <button id="btn-batch-csv" class="btn-primary" style="margin-top: 0; background: var(--color-normal);" disabled onclick="exportBatchCsv()">
                         <span id="txt-btn-batch-csv">Ekspor Daftar Hasil (CSV)</span>
+                    </button>
+                    <button id="btn-batch-reset" class="btn-reset-action" style="margin-top: 0;" onclick="resetBatchTriage()">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        <span id="txt-btn-batch-reset">Reset / Kloter Baru</span>
                     </button>
                 </div>
 
@@ -371,11 +387,12 @@
                             <th>Risiko TB (%)</th>
                             <th>Tindakan Medis</th>
                             <th>Waktu Proses</th>
+                            <th id="batch-th-action">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="batch-tbody">
                         <tr>
-                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada hasil skrining massal.</td>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada hasil skrining massal.</td>
                         </tr>
                     </tbody>
                 </table>
