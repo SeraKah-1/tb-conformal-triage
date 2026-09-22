@@ -116,39 +116,17 @@ function acceptDisclaimer() {
     if (modal) modal.style.display = 'none';
 }
 
-// // 4. Server Health & Cold-Start Poller (Exponential Backoff & Dual Mode)
-let pollAttemptCount = 0;
-let isBackendLive = false;
-
-async function pollServerHealth() {
+// 4. System Status Indicator (100% Offline WASM Air-Gapped)
+function initSystemStatus() {
     const statusText = document.getElementById('txt-status');
     const statusDot = document.querySelector('.status-dot');
-    
-    try {
-        const resp = await fetch('/health', { signal: AbortSignal.timeout(3000) });
-        if (resp.ok) {
-            isBackendLive = true;
-            pollAttemptCount = 0;
-            if (statusText) statusText.innerText = I18N_DICT[currentLang].statusOnline;
-            if (statusDot) {
-                statusDot.className = 'status-dot';
-            }
-            return true;
-        } else {
-            throw new Error('Server degraded');
-        }
-    } catch(e) {
-        isBackendLive = false;
-        pollAttemptCount++;
-        if (statusText) {
-            statusText.innerText = 'BENCHMARK READY (STATIC)';
-        }
-        if (statusDot) {
-            statusDot.className = 'status-dot connecting';
-        }
-        // Poll gently every 15s in case backend server is attached
-        setTimeout(pollServerHealth, 15000);
-        return false;
+    const t = I18N_DICT[currentLang] || I18N_DICT.en;
+    if (statusText) {
+        statusText.innerText = t.statusDegraded || 'OFFLINE MODE (WASM)';
+    }
+    if (statusDot) {
+        statusDot.className = 'status-dot';
+        statusDot.style.background = 'var(--color-normal)';
     }
 }
 
@@ -195,6 +173,22 @@ function handleSingleFile(file) {
     if (statusBox) statusBox.style.display = 'block';
     if (submitBtn) submitBtn.disabled = false;
 
+    // Reset previous patient's results, heatmap, and UI state to prevent desynchronization
+    currentResultData = null;
+    const emptyBox = document.getElementById('empty-state');
+    const resultsBox = document.getElementById('results-display');
+    const loadingBox = document.getElementById('loading-state');
+    if (emptyBox) emptyBox.style.display = 'block';
+    if (resultsBox) resultsBox.style.display = 'none';
+    if (loadingBox) loadingBox.style.display = 'none';
+
+    const imgHeat = document.getElementById('img-heat');
+    if (imgHeat) imgHeat.src = '';
+    const barTb = document.getElementById('bar-prob-tb');
+    const barNorm = document.getElementById('bar-prob-norm');
+    if (barTb) barTb.style.width = '0%';
+    if (barNorm) barNorm.style.width = '0%';
+
     // Read preview
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -213,114 +207,8 @@ function captureCamera() {
     }
 }
 
-// 6. Benchmark Case Dossiers (Ground-Truth Serialized from Dual T4 Kaggle Evaluations)
-const BENCHMARK_DOSSIERS = {
-    'india_solan_active_tb.png': {
-        filename: 'india_solan_active_tb.png',
-        predicted_class: 'Tuberculosis',
-        probability_tb: 0.7011,
-        probability_normal: 0.2989,
-        decision_threshold_used: 0.4401,
-        triage_action: 'REFER_AMBIGUOUS_TO_DOCTOR',
-        conformal_details: {
-            conformal_set: ['Tuberculosis'],
-            quantile_q0_normal: 0.2817,
-            quantile_q1_tb: 0.9551,
-            nominal_coverage_guarantee: '>= 95.0%',
-            clinical_action_code: 'REFER_AMBIGUOUS_TO_DOCTOR',
-            safety_interlock_engaged: true
-        },
-        warning: 'High Risk TB suspected (Posterior P(TB)=0.7011 > WHO cutoff 0.4401). Mandatory clinician evaluation and GeneXpert microbiological confirmation indicated.',
-        iqa_report: {
-            is_valid_radiograph: true,
-            is_inverted: false,
-            contrast_ratio: 3.42,
-            quality_flag: 'DIAGNOSTIC_QUALITY_ACCEPTABLE'
-        },
-        ood_report: {
-            mahalanobis_distance: 1895.25,
-            distance_to_normal: 2334.22,
-            distance_to_tb: 1895.25,
-            threshold: 9.80,
-            is_ood: true,
-            distribution_percentile: 100.0,
-            warning: 'Deteksi OOD: Karakteristik citra berada di luar distribusi kalibrasi (Jarak Mahalanobis 1895.25 > ambang batas 9.80). Wajib telaah dokter spesialis.'
-        },
-        allow_autonomous_release: false,
-        hirescam_overlay_url: './samples/panel_A_heat.png',
-        inference_latency_ms: 343.8
-    },
-    'india_solan_normal_control.png': {
-        filename: 'india_solan_normal_control.png',
-        predicted_class: 'Normal',
-        probability_tb: 0.0000,
-        probability_normal: 1.0000,
-        decision_threshold_used: 0.4401,
-        triage_action: 'ASSISTIVE_NORMAL_DOCTOR_VERIFY',
-        conformal_details: {
-            conformal_set: ['Normal'],
-            quantile_q0_normal: 0.2817,
-            quantile_q1_tb: 0.9551,
-            nominal_coverage_guarantee: '>= 95.0%',
-            clinical_action_code: 'ASSISTIVE_NORMAL_DOCTOR_VERIFY',
-            safety_interlock_engaged: true
-        },
-        warning: 'Assistive normal verification: No focal pulmonary consolidation detected. Physician confirmation required.',
-        iqa_report: {
-            is_valid_radiograph: true,
-            is_inverted: false,
-            contrast_ratio: 4.12,
-            quality_flag: 'DIAGNOSTIC_QUALITY_ACCEPTABLE'
-        },
-        ood_report: {
-            mahalanobis_distance: 2.14,
-            distance_to_normal: 2.14,
-            distance_to_tb: 28.50,
-            threshold: 9.80,
-            is_ood: false,
-            distribution_percentile: 45.2,
-            warning: null
-        },
-        allow_autonomous_release: false,
-        hirescam_overlay_url: './samples/normal_healthy_case_hirescam.png',
-        inference_latency_ms: 312.4
-    },
-    'nitrd_apical_tb.png': {
-        filename: 'nitrd_apical_tb.png',
-        predicted_class: 'Tuberculosis',
-        probability_tb: 0.9842,
-        probability_normal: 0.0158,
-        decision_threshold_used: 0.4401,
-        triage_action: 'AUTO_FLAG_TB_URGENT',
-        conformal_details: {
-            conformal_set: ['Tuberculosis'],
-            quantile_q0_normal: 0.2817,
-            quantile_q1_tb: 0.9551,
-            nominal_coverage_guarantee: '>= 95.0%',
-            clinical_action_code: 'AUTO_FLAG_TB_URGENT',
-            safety_interlock_engaged: false
-        },
-        warning: 'Urgent apical infiltration detected. Immediate sputum collection and isolation protocol indicated.',
-        iqa_report: {
-            is_valid_radiograph: true,
-            is_inverted: false,
-            contrast_ratio: 3.85,
-            quality_flag: 'DIAGNOSTIC_QUALITY_ACCEPTABLE'
-        },
-        ood_report: {
-            mahalanobis_distance: 6.42,
-            distance_to_normal: 34.12,
-            distance_to_tb: 6.42,
-            threshold: 9.80,
-            is_ood: false,
-            distribution_percentile: 72.8,
-            warning: null
-        },
-        allow_autonomous_release: false,
-        hirescam_overlay_url: './samples/panel_B_heat.png',
-        inference_latency_ms: 328.6
-    }
-};
+// // 6. Clinical Benchmark Samples Loader
+// Enforces 100% in-browser WebAssembly ONNX forward pass (Zero Mock Invariant)
 
 async function loadBenchmarkCase(sampleName) {
     try {
@@ -383,7 +271,274 @@ async function getOrtSession() {
     return ortSession;
 }
 
-function preprocessImageForONNX(imageElement) {
+// Pre-Analytic Image Quality Assurance (IQA) & Guardrails
+function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
+    const origW = imgElement.naturalWidth || imgElement.videoWidth || imgElement.width;
+    const origH = imgElement.naturalHeight || imgElement.videoHeight || imgElement.height;
+
+    if (!origW || !origH) {
+        return {
+            quality_passed: false,
+            reject_code: 'REJECT_INVALID_DIMENSIONS',
+            aspect_ratio: 1.0,
+            dynamic_range: 0,
+            is_inverted: false,
+            blockiness_score: 1.0,
+            warnings: ['Image dimensions could not be resolved from element.']
+        };
+    }
+
+    const ar = origW / origH;
+    const isValidAr = (ar >= 0.65 && ar <= 1.55);
+    const isSufficientRes = (origW >= 256 && origH >= 256);
+
+    // Standardize analysis canvas dimensions to max 512px for instant (< 5ms) processing
+    const scale = Math.min(1.0, 512.0 / Math.max(origW, origH));
+    const analysisW = Math.max(64, Math.round(origW * scale));
+    const analysisH = Math.max(64, Math.round(origH * scale));
+
+    let targetCanvas = canvas;
+    let targetCtx = ctx;
+    if (!targetCanvas) {
+        targetCanvas = document.createElement('canvas');
+    }
+    targetCanvas.width = analysisW;
+    targetCanvas.height = analysisH;
+    if (!targetCtx) {
+        targetCtx = targetCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    targetCtx.drawImage(imgElement, 0, 0, analysisW, analysisH);
+
+    const imgData = targetCtx.getImageData(0, 0, analysisW, analysisH);
+    const raw = imgData.data;
+    const totalPixels = analysisW * analysisH;
+    const w = analysisW;
+    const h = analysisH;
+
+    const gray = new Float32Array(totalPixels);
+    let totalSatDelta = 0;
+    let countWhite = 0;
+    let countBlack = 0;
+    const hist = new Uint32Array(256);
+
+    for (let i = 0; i < totalPixels; i++) {
+        const idx = i * 4;
+        const r = raw[idx];
+        const g = raw[idx + 1];
+        const b = raw[idx + 2];
+
+        // Color Saturation Index
+        totalSatDelta += Math.abs(r - g) + Math.abs(g - b) + Math.abs(b - r);
+
+        // Grayscale Luminance (Rec. 601)
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        gray[i] = lum;
+
+        const bin = Math.min(255, Math.max(0, Math.round(lum)));
+        hist[bin]++;
+
+        if (lum > 245) countWhite++;
+        if (lum < 10) countBlack++;
+    }
+
+    const meanSat = totalSatDelta / totalPixels;
+    const isColor = meanSat > 25.0;
+
+    // Dynamic contrast range via histogram percentiles P1 & P99
+    const countP1 = Math.floor(totalPixels * 0.01);
+    const countP99 = Math.floor(totalPixels * 0.99);
+    let cum = 0;
+    let p1 = 0;
+    let p99 = 255;
+    let foundP1 = false;
+    for (let b = 0; b < 256; b++) {
+        cum += hist[b];
+        if (!foundP1 && cum >= countP1) {
+            p1 = b;
+            foundP1 = true;
+        }
+        if (cum >= countP99) {
+            p99 = b;
+            break;
+        }
+    }
+    const dynamicRange = p99 - p1;
+    const isSufficientContrast = dynamicRange >= 35.0;
+
+    // Modality / Anatomy Guard
+    const whiteRatio = countWhite / totalPixels;
+    const blackRatio = countBlack / totalPixels;
+    const isInvalidAnatomyDoc = (whiteRatio > 0.60) || (blackRatio > 0.70);
+
+    // Photometric Polarity Check: 4 corners (8% margin, min 4 px) vs center zone (x: 40-60%, y: 35-65%)
+    const cH = Math.max(4, Math.floor(0.08 * h));
+    const cW = Math.max(4, Math.floor(0.08 * w));
+    let cornerSum = 0;
+    let cornerCount = 0;
+
+    for (let y = 0; y < cH; y++) {
+        const rowOff = y * w;
+        for (let x = 0; x < cW; x++) {
+            cornerSum += gray[rowOff + x];
+            cornerCount++;
+        }
+        for (let x = w - cW; x < w; x++) {
+            cornerSum += gray[rowOff + x];
+            cornerCount++;
+        }
+    }
+    for (let y = h - cH; y < h; y++) {
+        const rowOff = y * w;
+        for (let x = 0; x < cW; x++) {
+            cornerSum += gray[rowOff + x];
+            cornerCount++;
+        }
+        for (let x = w - cW; x < w; x++) {
+            cornerSum += gray[rowOff + x];
+            cornerCount++;
+        }
+    }
+    const meanCorner = cornerCount > 0 ? (cornerSum / cornerCount) : 0;
+
+    const midY1 = Math.floor(0.35 * h);
+    const midY2 = Math.floor(0.65 * h);
+    const midX1 = Math.floor(0.40 * w);
+    const midX2 = Math.floor(0.60 * w);
+    let centerSum = 0;
+    let centerCount = 0;
+    for (let y = midY1; y < midY2; y++) {
+        const rowOff = y * w;
+        for (let x = midX1; x < midX2; x++) {
+            centerSum += gray[rowOff + x];
+            centerCount++;
+        }
+    }
+    const meanCenter = centerCount > 0 ? (centerSum / centerCount) : 0;
+
+    const isInverted = (meanCorner > 120.0) || (meanCorner > 75.0 && meanCorner > 1.30 * meanCenter);
+
+    // 8x8 DCT Grid Discontinuity (Blockiness Score) on 1:1 Native Resolution
+    let blockinessScore = 1.0;
+    if (origW >= 64 && origH >= 64) {
+        const patchW = Math.min(256, origW);
+        const patchH = Math.min(256, origH);
+        const patchCropX = Math.floor((origW - patchW) / 2);
+        const patchCropY = Math.floor((origH - patchH) / 2);
+
+        const patchCanvas = document.createElement('canvas');
+        patchCanvas.width = patchW;
+        patchCanvas.height = patchH;
+        const patchCtx = patchCanvas.getContext('2d', { willReadFrequently: true });
+        patchCtx.drawImage(imgElement, patchCropX, patchCropY, patchW, patchH, 0, 0, patchW, patchH);
+        const patchRaw = patchCtx.getImageData(0, 0, patchW, patchH).data;
+
+        // Grayscale conversion of native patch
+        const patchPixels = patchW * patchH;
+        const patchGray = new Float32Array(patchPixels);
+        for (let i = 0; i < patchPixels; i++) {
+            const idx = i * 4;
+            patchGray[i] = 0.299 * patchRaw[idx] + 0.587 * patchRaw[idx + 1] + 0.114 * patchRaw[idx + 2];
+        }
+
+        const margin = 8;
+        const sh = patchH - 2 * margin;
+        const sw = patchW - 2 * margin;
+        let sumBh = 0, countBh = 0;
+        let sumIh = 0, countIh = 0;
+        let sumBv = 0, countBv = 0;
+        let sumIv = 0, countIv = 0;
+
+        for (let y = 0; y < sh; y++) {
+            const rowOff = (y + margin) * patchW + margin;
+            for (let x = 0; x < sw - 1; x++) {
+                const diff = Math.abs(patchGray[rowOff + x] - patchGray[rowOff + x + 1]);
+                if ((x + 1) % 8 === 0) {
+                    sumBh += diff;
+                    countBh++;
+                } else {
+                    sumIh += diff;
+                    countIh++;
+                }
+            }
+        }
+
+        for (let y = 0; y < sh - 1; y++) {
+            const rowOff1 = (y + margin) * patchW + margin;
+            const rowOff2 = (y + margin + 1) * patchW + margin;
+            const isBoundaryRow = ((y + 1) % 8 === 0);
+            for (let x = 0; x < sw; x++) {
+                const diff = Math.abs(patchGray[rowOff1 + x] - patchGray[rowOff2 + x]);
+                if (isBoundaryRow) {
+                    sumBv += diff;
+                    countBv++;
+                } else {
+                    sumIv += diff;
+                    countIv++;
+                }
+            }
+        }
+
+        if (countBh > 0 && countIh > 0 && countBv > 0 && countIv > 0) {
+            const meanBh = sumBh / countBh;
+            const meanIh = sumIh / countIh + 1e-5;
+            const meanBv = sumBv / countBv;
+            const meanIv = sumIv / countIv + 1e-5;
+            blockinessScore = 0.5 * ((meanBh / meanIh) + (meanBv / meanIv));
+        }
+    }
+    const isHeavyCompression = blockinessScore > 1.40;
+
+    const warnings = [];
+    let rejectCode = null;
+
+    if (!isSufficientRes) {
+        rejectCode = 'REJECT_LOW_RESOLUTION';
+        warnings.push('Low resolution (' + w + 'x' + h + ' px). Apical textures cannot be verified.');
+    } else if (!isValidAr) {
+        rejectCode = 'REJECT_INVALID_ASPECT_RATIO';
+        warnings.push('Non-standard aspect ratio (' + ar.toFixed(2) + '). Valid CXR range is 0.65 - 1.55.');
+    } else if (isColor) {
+        rejectCode = 'REJECT_NON_RADIOGRAPH_COLOR';
+        warnings.push('Full color image detected (Saturation index ' + meanSat.toFixed(1) + ' > 25.0). CXR must be monochrome.');
+    } else if (isInvalidAnatomyDoc) {
+        rejectCode = 'REJECT_INVALID_ANATOMY_DOCUMENT';
+        warnings.push('Invalid anatomy: Document or blank page detected (White: ' + (whiteRatio * 100).toFixed(1) + '%, Black: ' + (blackRatio * 100).toFixed(1) + '%).');
+    } else if (!isSufficientContrast) {
+        rejectCode = 'REJECT_LOW_CONTRAST';
+        warnings.push('Low dynamic contrast range (' + dynamicRange.toFixed(1) + ' < 35.0). Image is washed out or flat.');
+    } else if (isHeavyCompression) {
+        rejectCode = 'REJECT_HEAVY_COMPRESSION';
+        warnings.push('Severe compression artifacts (Blockiness ' + blockinessScore.toFixed(2) + ' > 1.40). Risk of spurious reticular noise.');
+    }
+
+    if (isInverted) {
+        warnings.push('Photometric polarity inverted (MONOCHROME1). Auto-correction active.');
+    }
+
+    const qualityPassed = (rejectCode === null);
+
+    return {
+        aspect_ratio: parseFloat(ar.toFixed(3)),
+        is_valid_aspect_ratio: isValidAr,
+        resolution: origW + 'x' + origH,
+        is_sufficient_resolution: isSufficientRes,
+        saturation_index: parseFloat(meanSat.toFixed(2)),
+        is_color: isColor,
+        dynamic_range: parseFloat(dynamicRange.toFixed(1)),
+        is_sufficient_contrast: isSufficientContrast,
+        is_invalid_anatomy: isInvalidAnatomyDoc,
+        white_pixel_ratio: parseFloat(whiteRatio.toFixed(3)),
+        black_pixel_ratio: parseFloat(blackRatio.toFixed(3)),
+        is_inverted: isInverted,
+        blockiness_score: parseFloat(blockinessScore.toFixed(3)),
+        is_heavy_compression: isHeavyCompression,
+        quality_passed: qualityPassed,
+        reject_code: rejectCode,
+        warnings: warnings
+    };
+}
+
+function preprocessImageForONNX(imageElement, isInverted = false) {
     const canvas512 = document.createElement('canvas');
     canvas512.width = 512;
     canvas512.height = 512;
@@ -395,11 +550,15 @@ function preprocessImageForONNX(imageElement) {
     const rawData = ctx512.getImageData(0, 0, 512, 512).data;
     const totalPixels = 512 * 512;
 
-    // Convert to grayscale luminance
+    // Convert to grayscale luminance with non-destructive auto-correction if inverted
     const gray = new Float32Array(totalPixels);
     for (let i = 0; i < totalPixels; i++) {
         const idx = i * 4;
-        gray[i] = 0.299 * rawData[idx] + 0.587 * rawData[idx + 1] + 0.114 * rawData[idx + 2];
+        let lum = 0.299 * rawData[idx] + 0.587 * rawData[idx + 1] + 0.114 * rawData[idx + 2];
+        if (isInverted) {
+            lum = 255.0 - lum;
+        }
+        gray[i] = lum;
     }
 
     // Central-thorax percentile windowing (15% to 85% horizontal and vertical)
@@ -506,30 +665,64 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
     return outCanvas.toDataURL('image/png');
 }
 
-async function runClientSideInference(file, imageElement) {
+async function runClientSideInference(file, imageElement, iqaResult) {
     const session = await getOrtSession();
     const t0 = performance.now();
-    const tensor = preprocessImageForONNX(imageElement);
+    const isInverted = iqaResult ? iqaResult.is_inverted : false;
+    const tensor = preprocessImageForONNX(imageElement, isInverted);
 
     const results = await session.run({ input: tensor });
     const logits = results.logits.data;
     const camData = results.cam.data;
+    const latents = results.latents.data;
+
+    // Real Latent Feature OOD Detection (Mahalanobis Distance to Reference Cohort)
+    let sumSq0 = 0.0;
+    let sumSq1 = 0.0;
+    const mu0 = OOD_REFERENCE_CALIBRATION.mu_0;
+    const mu1 = OOD_REFERENCE_CALIBRATION.mu_1;
+    const stdInv = OOD_REFERENCE_CALIBRATION.std_inv;
+
+    for (let i = 0; i < 1024; i++) {
+        const diff0 = (latents[i] - mu0[i]) * stdInv[i];
+        const diff1 = (latents[i] - mu1[i]) * stdInv[i];
+        sumSq0 += diff0 * diff0;
+        sumSq1 += diff1 * diff1;
+    }
+    const d0 = Math.sqrt(sumSq0);
+    const d1 = Math.sqrt(sumSq1);
+    const dMin = Math.min(d0, d1);
+    const isOod = (dMin > OOD_REFERENCE_CALIBRATION.threshold_diag);
+
+    const oodWarning = isOod
+        ? (currentLang === 'id'
+            ? 'Anomali OOD: Representasi fitur laten citra menyimpang dari populasi kalibrasi rontgen toraks (Jarak ' + dMin.toFixed(2) + ' > ' + OOD_REFERENCE_CALIBRATION.threshold_diag + '). Wajib telaah dokter spesialis.'
+            : 'OOD Anomaly: Latent feature representation diverges from thoracic reference population (Distance ' + dMin.toFixed(2) + ' > ' + OOD_REFERENCE_CALIBRATION.threshold_diag + '). Expert physician review mandatory.')
+        : null;
+
+    const oodReport = {
+        mahalanobis_distance: parseFloat(dMin.toFixed(2)),
+        distance_to_normal: parseFloat(d0.toFixed(2)),
+        distance_to_tb: parseFloat(d1.toFixed(2)),
+        threshold: OOD_REFERENCE_CALIBRATION.threshold_diag,
+        is_ood: isOod,
+        warning: oodWarning
+    };
 
     const T = 2.1161616;
-    const exp0 = Math.exp(logits[0] / T);
-    const exp1 = Math.exp(logits[1] / T);
+    const maxLogit = Math.max(logits[0], logits[1]);
+    const exp0 = Math.exp((logits[0] - maxLogit) / T);
+    const exp1 = Math.exp((logits[1] - maxLogit) / T);
     const probTb = exp1 / (exp0 + exp1);
     const probNormal = 1.0 - probTb;
 
     const q0 = 0.281667;
     const q1 = 0.955110;
 
-    // Clinically Grounded Conformal Set Construction:
-    // When uncertainty is elevated (|probTb - 0.4401| < 0.20 or probNormal near 50%),
-    // both clinical hypotheses remain plausible and must not be unilaterally excluded.
+    // Standard Split Conformal Set Construction: include y iff P(Y=y|X) >= 1 - q_y
     const conformalSet = [];
-    const includeNormal = (probNormal >= (1.0 - q0)) || (probNormal >= 0.35 && probTb < 0.65);
-    const includeTb = (probTb >= (1.0 - q1)) && (probTb >= 0.35 || probNormal < 0.65);
+    const includeNormal = (probNormal >= (1.0 - q0));
+    const includeTb = (probTb >= (1.0 - q1));
 
     if (includeNormal) conformalSet.push('Normal');
     if (includeTb) conformalSet.push('Tuberculosis');
@@ -538,29 +731,20 @@ async function runClientSideInference(file, imageElement) {
     let safetyInterlock = true;
     let warningMsg = null;
 
-    // Strict Clinical Safety Decision Rules:
-    // Rule 1: High-Confidence Urgent Tuberculosis (AUTO_FLAG_TB_URGENT)
-    //         Requires genuine diagnostic conviction:
-    //         - Conformal set contains Tuberculosis
-    //         - Calibrated P(TB) >= 0.65 (substantially above WHO 0.4401 threshold)
-    //         - P(TB) > P(Normal)
-    if (conformalSet.includes('Tuberculosis') && probTb >= 0.65 && probTb > probNormal) {
+    // Strict Decision Rules with OOD Safety Interlock
+    if (isOod) {
+        triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
+        safetyInterlock = true;
+        warningMsg = oodReport.warning;
+    } else if (conformalSet.includes('Tuberculosis') && probTb >= 0.65 && probTb > probNormal) {
         triageAction = 'AUTO_FLAG_TB_URGENT';
         safetyInterlock = false;
         warningMsg = 'High Risk Pulmonary TB suspected (Calibrated P(TB)=' + (probTb * 100).toFixed(1) + '% exceeds high-risk threshold 65.0%). Immediate microbiological sputum GeneXpert test and urgent clinician evaluation indicated.';
-    }
-    // Rule 2: High-Confidence Normal Verification (ASSISTIVE_NORMAL_DOCTOR_VERIFY)
-    //         Requires clear normal indicators:
-    //         - Conformal set is purely ['Normal']
-    //         - Calibrated P(TB) < 0.20 and P(Normal) >= 0.80
-    else if (conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
+    } else if (conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
         triageAction = 'ASSISTIVE_NORMAL_DOCTOR_VERIFY';
         safetyInterlock = true;
         warningMsg = 'Assistive normal verification: No focal pulmonary consolidation or cavitary infiltrate detected. Physician confirmation required.';
-    }
-    // Rule 3: Equivocal / Borderline Triage (REFER_AMBIGUOUS_TO_DOCTOR)
-    //         All cases in the uncertain zone (including 50/50 splits) MUST be reviewed by human doctor
-    else {
+    } else {
         triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
         safetyInterlock = true;
         if (Math.abs(probTb - probNormal) < 0.15 || (probTb >= 0.40 && probTb <= 0.60)) {
@@ -574,7 +758,7 @@ async function runClientSideInference(file, imageElement) {
         }
     }
 
-    const heatDataUrl = generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
+    const heatDataUrl = isOod ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
     const heatBase64 = heatDataUrl;
     const latMs = Math.round(performance.now() - t0);
 
@@ -594,19 +778,8 @@ async function runClientSideInference(file, imageElement) {
             safety_interlock_engaged: safetyInterlock
         },
         warning: warningMsg,
-        iqa_report: {
-            is_valid_radiograph: true,
-            is_inverted: false,
-            contrast_ratio: 3.5,
-            quality_flag: 'DIAGNOSTIC_QUALITY_ACCEPTABLE'
-        },
-        ood_report: {
-            mahalanobis_distance: 3.84,
-            threshold: 9.80,
-            is_ood: false,
-            distribution_percentile: 58.4,
-            warning: null
-        },
+        iqa_report: iqaResult,
+        ood_report: oodReport,
         allow_autonomous_release: false,
         hirescam_heatmap_base64: heatBase64,
         inference_latency_ms: latMs,
@@ -620,29 +793,6 @@ async function submitSingleTriage() {
     isSubmitting = true;
     setLoadingState(true);
 
-    // Fast path: Verified clinical benchmark cases
-    if (BENCHMARK_DOSSIERS[selectedFile.name]) {
-        const sampleData = JSON.parse(JSON.stringify(BENCHMARK_DOSSIERS[selectedFile.name]));
-        if (sampleData.hirescam_overlay_url) {
-            try {
-                const heatResp = await fetch(sampleData.hirescam_overlay_url);
-                const heatBlob = await heatResp.blob();
-                sampleData.hirescam_heatmap_base64 = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(heatBlob);
-                });
-            } catch(e) {
-                sampleData.hirescam_heatmap_base64 = sampleData.hirescam_overlay_url;
-            }
-        }
-        setLoadingState(false);
-        isSubmitting = false;
-        renderSingleResults(sampleData);
-        return;
-    }
-
-    // Pure 100% In-Browser WebAssembly Inference (0ms Network Latency, Air-Gapped Local RAM)
     try {
         if (!originalImageSrc && selectedFile) {
             originalImageSrc = await new Promise((resolve, reject) => {
@@ -662,14 +812,25 @@ async function submitSingleTriage() {
             }
         });
 
-        const data = await runClientSideInference(selectedFile, tempImg);
+        // 1. Pre-Analytic IQA Gatekeeper Evaluation (Fail-Fast)
+        const iqaResult = evaluatePreAnalyticQuality(tempImg);
+        if (!iqaResult.quality_passed) {
+            setLoadingState(false);
+            isSubmitting = false;
+            renderRejectionResults(selectedFile.name, iqaResult);
+            return;
+        }
+
+        // 2. Pure 100% In-Browser WebAssembly Inference (0ms Network Latency, Air-Gapped Local RAM)
+        const data = await runClientSideInference(selectedFile, tempImg, iqaResult);
         setLoadingState(false);
         isSubmitting = false;
         renderSingleResults(data);
     } catch(wasmErr) {
         setLoadingState(false);
         isSubmitting = false;
-        alert('Client-Side Inference Notice: ' + wasmErr.message);
+        console.error('[WASM INFERENCE ERROR]', wasmErr);
+        renderIdiograph('ERROR_RUNTIME', wasmErr.message || 'WASM Execution Error');
     }
 }
 
@@ -690,14 +851,19 @@ function setLoadingState(isLoading) {
     }
 }
 
+let currentResultData = null;
+
 function renderSingleResults(data) {
+    currentResultData = data;
     const emptyBox = document.getElementById('empty-state');
     const resultsBox = document.getElementById('results-display');
     if (emptyBox) emptyBox.style.display = 'none';
     if (resultsBox) resultsBox.style.display = 'block';
 
+    const isOod = Boolean(data.ood_report && data.ood_report.is_ood);
+
     // 1. Idiograph & Action Banner
-    renderIdiograph(data.triage_action, data.warning);
+    renderIdiograph(data.triage_action, data.warning, isOod, null, data.ood_report);
 
     // 2. Images in Comparison Slider
     const imgBase = document.getElementById('img-base');
@@ -737,14 +903,17 @@ function renderSingleResults(data) {
     const metLat = document.getElementById('met-lat');
 
     if (metSet) metSet.innerText = '{' + data.conformal_details.conformal_set.join(', ') + '}';
-    if (metAction) metAction.innerText = data.triage_action;
+    if (metAction) {
+        metAction.innerText = data.triage_action;
+        metAction.style.color = 'var(--text-main)';
+    }
     
     if (metOod) {
-        if (data.ood_report && data.ood_report.is_ood) {
-            metOod.innerText = 'OOD ANOMALY DETECTED';
+        if (isOod) {
+            metOod.innerText = 'OOD ANOMALY (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ' > ' + data.ood_report.threshold + ')';
             metOod.style.color = 'var(--color-referral)';
-        } else {
-            metOod.innerText = 'IN-DISTRIBUTION';
+        } else if (data.ood_report) {
+            metOod.innerText = 'IN-DISTRIBUTION (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ')';
             metOod.style.color = 'var(--color-normal)';
         }
     }
@@ -752,16 +921,67 @@ function renderSingleResults(data) {
     if (metLat) metLat.innerText = data.inference_latency_ms + ' ms';
 }
 
+function renderRejectionResults(filename, iqa) {
+    currentResultData = { filename: filename, is_rejection: true, iqa_report: iqa };
+
+    const emptyBox = document.getElementById('empty-state');
+    const resultsBox = document.getElementById('results-display');
+    if (emptyBox) emptyBox.style.display = 'none';
+    if (resultsBox) resultsBox.style.display = 'block';
+
+    // 1. Idiograph & Action Banner (Rejection Status)
+    renderIdiograph(iqa.reject_code, iqa.warnings[0], false, iqa.reject_code);
+
+    // 2. Images in Comparison Slider: Native radiograph only
+    const imgBase = document.getElementById('img-base');
+    const imgHeat = document.getElementById('img-heat');
+    if (imgBase && originalImageSrc) imgBase.src = originalImageSrc;
+    if (imgHeat && originalImageSrc) imgHeat.src = originalImageSrc;
+    setSliderMode('orig');
+
+    // 3. Probabilities: 0.00%
+    const valTb = document.getElementById('val-prob-tb');
+    const valNorm = document.getElementById('val-prob-norm');
+    const barTb = document.getElementById('bar-prob-tb');
+    const barNorm = document.getElementById('bar-prob-norm');
+
+    if (valTb) valTb.innerText = '0.00%';
+    if (valNorm) valNorm.innerText = '0.00%';
+    if (barTb) barTb.style.width = '0%';
+    if (barNorm) barNorm.style.width = '0%';
+
+    // 4. Metadata Matrix
+    const metSet = document.getElementById('met-set');
+    const metAction = document.getElementById('met-action');
+    const metOod = document.getElementById('met-ood');
+    const metLat = document.getElementById('met-lat');
+
+    if (metSet) metSet.innerText = '{Ditolak / Rejected}';
+    if (metAction) {
+        metAction.innerText = iqa.reject_code;
+        metAction.style.color = 'var(--color-tb)';
+    }
+    if (metOod) {
+        metOod.innerText = 'REJECTED (PRE-ANALYTIC)';
+        metOod.style.color = 'var(--color-tb)';
+    }
+    if (metLat) metLat.innerText = '< 5 ms (IQA Gatekeeper)';
+}
+
 let activeTriageAction = null;
 let activeTriageWarning = null;
 
 function refreshActiveIdiograph() {
-    if (activeTriageAction) {
-        renderIdiograph(activeTriageAction, activeTriageWarning);
+    if (currentResultData) {
+        if (currentResultData.is_rejection) {
+            renderRejectionResults(currentResultData.filename, currentResultData.iqa_report);
+        } else {
+            renderSingleResults(currentResultData);
+        }
     }
 }
 
-function renderIdiograph(action, warning) {
+function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, oodReport = null) {
     activeTriageAction = action;
     activeTriageWarning = warning;
 
@@ -775,6 +995,55 @@ function renderIdiograph(action, warning) {
     if (!banner) return;
     banner.className = 'idiograph-banner';
 
+    // Case 1: Pre-Analytic Rejection
+    if (iqaRejectCode || (action && action.startsWith('REJECT_'))) {
+        const code = iqaRejectCode || action;
+        banner.classList.add('action-reject');
+        if (badge) badge.innerText = t.actionRejectBadge;
+
+        if (code === 'REJECT_NON_RADIOGRAPH_COLOR') {
+            if (title) title.innerText = t.rejectColorTitle;
+            if (desc) desc.innerText = t.rejectColorDesc;
+        } else if (code === 'REJECT_INVALID_ANATOMY_DOCUMENT') {
+            if (title) title.innerText = t.rejectDocTitle;
+            if (desc) desc.innerText = t.rejectDocDesc;
+        } else if (code === 'REJECT_LOW_CONTRAST') {
+            if (title) title.innerText = t.rejectContrastTitle;
+            if (desc) desc.innerText = t.rejectContrastDesc;
+        } else if (code === 'REJECT_INVALID_ASPECT_RATIO') {
+            if (title) title.innerText = t.rejectAspectTitle;
+            if (desc) desc.innerText = t.rejectAspectDesc;
+        } else if (code === 'REJECT_LOW_RESOLUTION') {
+            if (title) title.innerText = t.rejectResTitle;
+            if (desc) desc.innerText = t.rejectResDesc;
+        } else if (code === 'REJECT_HEAVY_COMPRESSION') {
+            if (title) title.innerText = t.rejectCompressionTitle;
+            if (desc) desc.innerText = t.rejectCompressionDesc;
+        } else {
+            if (title) title.innerText = t.actionRejectBadge;
+            if (desc) desc.innerText = warning || t.rejectDocDesc;
+        }
+
+        if (iconContainer) {
+            iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>';
+        }
+        return;
+    }
+
+    // Case 2: OOD Anomaly
+    if (isOod) {
+        banner.classList.add('action-ood');
+        if (badge) badge.innerText = t.actionOodBadge;
+        if (title) title.innerText = t.actionOodTitle;
+        const dText = oodReport ? (' (D=' + oodReport.mahalanobis_distance.toFixed(2) + ' > ' + oodReport.threshold + ')') : '';
+        if (desc) desc.innerText = t.actionOodDesc + dText;
+        if (iconContainer) {
+            iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+        }
+        return;
+    }
+
+    // Case 3: Standard In-Distribution Outcomes
     if (action === 'AUTO_RELEASE_NORMAL' || action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
         banner.classList.add('action-normal');
         if (badge) badge.innerText = t.actionNormalBadge;
@@ -844,10 +1113,63 @@ function queueBatchFiles(files) {
     if (startBtn) startBtn.disabled = batchFiles.length === 0;
 }
 
+async function processBatchItem(file) {
+    const imgUrl = URL.createObjectURL(file);
+    const tempImg = new Image();
+    tempImg.src = imgUrl;
+
+    try {
+        await new Promise((resolve, reject) => {
+            tempImg.onload = resolve;
+            tempImg.onerror = reject;
+        });
+
+        // 1. Pre-Analytic Quality Assessment (Fail-Fast for Batch Items)
+        const iqaResult = evaluatePreAnalyticQuality(tempImg);
+        if (!iqaResult.quality_passed) {
+            const rejectAction = iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH';
+            return {
+                filename: file.name,
+                predicted_class: 'Rejected',
+                probability_tb: 0.0,
+                probability_normal: 0.0,
+                decision_threshold_used: 0.4401,
+                triage_action: rejectAction,
+                conformal_details: {
+                    conformal_set: ['Rejected'],
+                    quantile_q0_normal: 0.2817,
+                    quantile_q1_tb: 0.9551,
+                    nominal_coverage_guarantee: 'N/A',
+                    clinical_action_code: rejectAction,
+                    safety_interlock_engaged: true
+                },
+                warning: iqaResult.warnings.join('; '),
+                iqa_report: iqaResult,
+                ood_report: {
+                    mahalanobis_distance: 0,
+                    threshold: (typeof OOD_REFERENCE_CALIBRATION !== 'undefined') ? OOD_REFERENCE_CALIBRATION.threshold_diag : 41.94,
+                    is_ood: false,
+                    warning: 'Pre-analytic rejection: ' + rejectAction
+                },
+                allow_autonomous_release: false,
+                hirescam_heatmap_base64: null,
+                inference_latency_ms: 2,
+                execution_mode: 'IN_BROWSER_WASM'
+            };
+        }
+
+        // 2. Client-Side WASM Inference with Real Latent OOD Check
+        const data = await runClientSideInference(file, tempImg, iqaResult);
+        return data;
+    } finally {
+        URL.revokeObjectURL(imgUrl);
+    }
+}
+
 async function startBatchProcessing() {
     if (batchFiles.length === 0 || isBatchRunning) return;
     isBatchRunning = true;
-    batchResults = [];
+    batchResults = new Array(batchFiles.length);
 
     const startBtn = document.getElementById('btn-batch-start');
     const csvBtn = document.getElementById('btn-batch-csv');
@@ -874,8 +1196,6 @@ async function startBatchProcessing() {
         while (index < total) {
             const currentIndex = index++;
             const file = batchFiles[currentIndex];
-            const formData = new FormData();
-            formData.append('file', file);
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -889,31 +1209,14 @@ async function startBatchProcessing() {
             if (tbody) tbody.appendChild(row);
 
             try {
-                const t0 = performance.now();
-                let data = null;
-                let lat = 0;
-
-                if (BENCHMARK_DOSSIERS[file.name]) {
-                    data = JSON.parse(JSON.stringify(BENCHMARK_DOSSIERS[file.name]));
-                    lat = Math.round(data.inference_latency_ms || 320);
-                } else {
-                    // Pure 100% In-Browser WebAssembly Forward Pass
-                    const imgUrl = URL.createObjectURL(file);
-                    const tempImg = new Image();
-                    tempImg.src = imgUrl;
-                    await new Promise((resolve, reject) => {
-                        tempImg.onload = resolve;
-                        tempImg.onerror = reject;
-                    });
-                    data = await runClientSideInference(file, tempImg);
-                    URL.revokeObjectURL(imgUrl);
-                    lat = data.inference_latency_ms;
-                }
+                const data = await processBatchItem(file);
+                const lat = data.inference_latency_ms;
 
                 if (data) {
-                    batchResults.push(data);
-                    document.getElementById(`status-${currentIndex}`).innerText = 'SUCCESS';
-                    document.getElementById(`prob-${currentIndex}`).innerText = (data.probability_tb * 100).toFixed(1) + '%';
+                    batchResults[currentIndex] = data;
+                    const isRejected = data.triage_action.startsWith('REJECT_') || data.predicted_class === 'Rejected';
+                    document.getElementById(`status-${currentIndex}`).innerText = isRejected ? 'REJECTED' : 'SUCCESS';
+                    document.getElementById(`prob-${currentIndex}`).innerText = isRejected ? '0.0%' : (data.probability_tb * 100).toFixed(1) + '%';
                     document.getElementById(`action-${currentIndex}`).innerText = data.triage_action;
                     document.getElementById(`lat-${currentIndex}`).innerText = lat + ' ms';
 
@@ -921,10 +1224,12 @@ async function startBatchProcessing() {
                     else if (data.triage_action === 'AUTO_FLAG_TB_URGENT') tbCount++;
                     else refCount++;
                 } else {
+                    batchResults[currentIndex] = null;
                     document.getElementById(`status-${currentIndex}`).innerText = 'FAILED';
                     document.getElementById(`action-${currentIndex}`).innerText = 'Inference failed';
                 }
             } catch(e) {
+                batchResults[currentIndex] = null;
                 document.getElementById(`status-${currentIndex}`).innerText = 'ERROR';
                 document.getElementById(`action-${currentIndex}`).innerText = e.message;
             }
@@ -946,19 +1251,20 @@ async function startBatchProcessing() {
 
     isBatchRunning = false;
     if (startBtn) startBtn.disabled = false;
-    if (csvBtn) csvBtn.disabled = batchResults.length === 0;
+    if (csvBtn) csvBtn.disabled = batchResults.filter(Boolean).length === 0;
 }
 
 function exportBatchCsv() {
-    if (batchResults.length === 0) return;
+    const validResults = batchResults.filter(Boolean);
+    if (validResults.length === 0) return;
     const headers = ['Index', 'Filename', 'Predicted_Class', 'Probability_TB', 'Probability_Normal', 'Conformal_Set', 'Triage_Action', 'Latency_ms'];
-    const rows = batchResults.map((r, i) => [
+    const rows = validResults.map((r, i) => [
         i + 1,
         `"${r.filename}"`,
         r.predicted_class,
         r.probability_tb.toFixed(4),
         r.probability_normal.toFixed(4),
-        `"${r.conformal_details.conformal_set.join('; ')}"`,
+        `"${(r.conformal_details && r.conformal_details.conformal_set) ? r.conformal_details.conformal_set.join('; ') : ''}"`,
         r.triage_action,
         r.inference_latency_ms
     ]);
@@ -976,7 +1282,7 @@ document.addEventListener('DOMContentLoaded', function() {
     checkDisclaimerStatus();
     initSingleFileHandlers();
     initBatchHandlers();
-    pollServerHealth();
+    initSystemStatus();
     applyLanguage(currentLang);
     
     // Background preload ONNX model into browser RAM so inference is instant

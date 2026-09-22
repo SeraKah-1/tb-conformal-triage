@@ -7,7 +7,8 @@ function onSliderMove(val) {
     
     if (control && control.value !== val) control.value = val;
     if (divider) divider.style.left = val + '%';
-    if (heatImg) heatImg.style.clipPath = 'inset(0 ' + (100 - val) + '% 0 0)';
+    // Native CXR on left, Heatmap on right: clip heatmap from left by val%
+    if (heatImg) heatImg.style.clipPath = 'inset(0 0 0 ' + val + '%)';
 }
 
 function setSliderMode(mode) {
@@ -25,13 +26,15 @@ function setSliderMode(mode) {
         if (control) control.value = 50;
         onSliderMove(50);
     } else if (mode === 'orig') {
+        // 100% Native CXR: clip heatmap completely (val = 100)
         if (btnOrig) btnOrig.classList.add('active');
-        if (control) control.value = 0;
-        onSliderMove(0);
-    } else if (mode === 'heat') {
-        if (btnHeat) btnHeat.classList.add('active');
         if (control) control.value = 100;
         onSliderMove(100);
+    } else if (mode === 'heat') {
+        // 100% Heatmap: reveal heatmap completely (val = 0)
+        if (btnHeat) btnHeat.classList.add('active');
+        if (control) control.value = 0;
+        onSliderMove(0);
     }
 }
 

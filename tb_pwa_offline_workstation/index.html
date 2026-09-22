@@ -135,7 +135,7 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     Akuisisi Foto Rontgen
                 </h3>
-                <p class="card-desc" id="txt-upload-desc">Mendukung DICOM, PNG, dan JPEG. Pra-pemrosesan persentil thorax otomatis.</p>
+                <p class="card-desc" id="txt-upload-desc">Mendukung format PNG dan JPEG (ekspor DICOM standar). Pra-pemrosesan persentil thorax otomatis.</p>
 
                 <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()">
                     <div class="drop-icon">
@@ -143,7 +143,7 @@
                     </div>
                     <div class="upload-title" id="txt-upload-title">Seret Foto Rontgen Dada ke Sini atau Klik untuk Memilih</div>
                     <div class="upload-desc">Resolusi optimal: 512 x 512 hingga 4096 x 4096 px</div>
-                    <input type="file" id="file-input" style="display: none;" accept="image/*,.dcm">
+                    <input type="file" id="file-input" style="display: none;" accept="image/png,image/jpeg,image/webp">
                 </div>
 
                 <div id="file-status" class="file-status-box">
@@ -169,7 +169,7 @@
                     <div class="samples-grid">
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_active_tb.png')">
                             <span id="sample-1-name">Kasus TB Aktif (Solan Rural)</span>
-                            <span style="color: var(--color-tb); font-weight: 700;">TB P=0.98</span>
+                            <span style="color: var(--color-referral); font-weight: 700;">TB P=0.52</span>
                         </button>
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_normal_control.png')">
                             <span id="sample-2-name">Kontrol Normal (Sehat)</span>
@@ -177,7 +177,7 @@
                         </button>
                         <button class="sample-btn" onclick="loadBenchmarkCase('nitrd_apical_tb.png')">
                             <span id="sample-3-name">Infiltrat Apikal (NITRD Delhi)</span>
-                            <span style="color: var(--color-tb); font-weight: 700;">TB P=0.94</span>
+                            <span style="color: var(--color-referral); font-weight: 700;">TB P=0.52</span>
                         </button>
                     </div>
                 </div>
@@ -321,7 +321,7 @@
                     </div>
                     <div class="upload-title" id="txt-batch-drop-title">Seret Kumpulan Foto Rontgen atau Folder ke Sini</div>
                     <div class="upload-desc" id="batch-queue-status">Belum ada radiograf dalam antrean.</div>
-                    <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/*,.dcm">
+                    <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/png,image/jpeg,image/webp">
                 </div>
 
                 <div style="display: flex; gap: 12px; margin-top: 16px;">
@@ -404,6 +404,7 @@
     <!-- Modular Scripts -->
     <script src="./static/js/i18n.js"></script>
     <script src="./static/js/slider.js"></script>
+    <script src="./static/js/ood_calibration.js"></script>
     <script src="./static/js/app.js"></script>
 </body>
 </html>

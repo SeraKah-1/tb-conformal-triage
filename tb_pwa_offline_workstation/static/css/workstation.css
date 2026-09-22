@@ -304,6 +304,16 @@ body {
     border-color: var(--color-referral-border);
     color: var(--color-referral);
 }
+.idiograph-banner.action-reject {
+    background: var(--color-tb-bg);
+    border-color: var(--color-tb-border);
+    color: var(--color-tb);
+}
+.idiograph-banner.action-ood {
+    background: var(--color-referral-bg);
+    border-color: var(--color-referral-border);
+    color: var(--color-referral);
+}
 
 .action-icon-box {
     width: 44px; height: 44px;
@@ -320,12 +330,14 @@ body {
     border-color: rgba(16, 185, 129, 0.35);
     color: var(--color-normal);
 }
-.idiograph-banner.action-tb .action-icon-box {
+.idiograph-banner.action-tb .action-icon-box,
+.idiograph-banner.action-reject .action-icon-box {
     background: rgba(239, 68, 68, 0.15);
     border-color: rgba(239, 68, 68, 0.35);
     color: var(--color-tb);
 }
-.idiograph-banner.action-referral .action-icon-box {
+.idiograph-banner.action-referral .action-icon-box,
+.idiograph-banner.action-ood .action-icon-box {
     background: rgba(245, 158, 11, 0.15);
     border-color: rgba(245, 158, 11, 0.35);
     color: var(--color-referral);
