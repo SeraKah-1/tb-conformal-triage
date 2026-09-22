@@ -1,0 +1,15 @@
+{
+  "name": "tb-conformal-triage-root",
+  "version": "1.3.0",
+  "description": "Conformal Triage for Pulmonary Tuberculosis - Root Workspace",
+  "scripts": {
+    "dev": "node tb_pwa_offline_workstation/server.js",
+    "start": "node tb_pwa_offline_workstation/server.js"
+  },
+  "keywords": [
+    "tuberculosis",
+    "conformal-prediction",
+    "pwa"
+  ],
+  "license": "Apache-2.0"
+}
