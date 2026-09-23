@@ -83,13 +83,17 @@ const I18N_DICT = {
         batchStatusRejected: "Rejected",
         batchStatusSuccess: "Completed",
         batchStatusFailed: "Failed",
+        batchStatusCancelled: "Cancelled",
         btnSingleReset: "New Examination",
         btnBatchReset: "Reset / New Batch",
         btnBatchReturn: "Return to Batch Roster",
+        btnBatchCancel: "Cancel Batch",
         colAction: "Action",
         btnInspect: "View Heatmap",
         batchQueueEmpty: "No radiographs in queue.",
-        batchTableEmpty: "No batch screening results yet."
+        batchTableEmpty: "No batch screening results yet.",
+        errorRuntimeTitle: "Image Processing Error",
+        errorRuntimeDesc: "Radiograph file is corrupted, unreadable, or in an unsupported format. Please upload a valid JPG or PNG radiograph."
     },
     id: {
         brandTitle: "Skrining Rontgen Dada Tuberkulosis (TB-CXR)",
@@ -171,13 +175,17 @@ const I18N_DICT = {
         batchStatusRejected: "Ditolak (Foto Rusak)",
         batchStatusSuccess: "Selesai",
         batchStatusFailed: "Gagal",
+        batchStatusCancelled: "Dibatalkan",
         btnSingleReset: "Pemeriksaan Pasien Baru",
         btnBatchReset: "Reset / Kloter Baru",
         btnBatchReturn: "Kembali ke Daftar Skrining Massal",
+        btnBatchCancel: "Batalkan Skrining",
         colAction: "Aksi",
         btnInspect: "Buka Heatmap",
         batchQueueEmpty: "Belum ada foto rontgen dalam antrean.",
-        batchTableEmpty: "Belum ada hasil skrining massal."
+        batchTableEmpty: "Belum ada hasil skrining massal.",
+        errorRuntimeTitle: "Kesalahan Pemrosesan Citra",
+        errorRuntimeDesc: "File foto rontgen rusak atau format tidak terbaca. Mohon gunakan file citra JPG atau PNG yang valid."
     }
 };
 
@@ -298,6 +306,8 @@ function applyLanguage(lang) {
     if (btnBatchReset) btnBatchReset.innerText = t.btnBatchReset;
     const btnBatchReturn = document.getElementById('txt-btn-batch-return');
     if (btnBatchReturn) btnBatchReturn.innerText = t.btnBatchReturn;
+    const btnBatchCancel = document.getElementById('txt-btn-batch-cancel');
+    if (btnBatchCancel) btnBatchCancel.innerText = t.btnBatchCancel;
     const batchThAction = document.getElementById('batch-th-action');
     if (batchThAction) batchThAction.innerText = t.colAction;
 

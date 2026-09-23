@@ -42,7 +42,7 @@ Tersedia 2 metode penerapan fleksibel yang dapat disesuaikan dengan ketersediaan
 ### Jalur B: Paket USB Flashdisk Portabel (100% Air-Gapped)
 *Pilihan utama untuk komputer faskes terpencil yang tidak memiliki sambungan internet sama sekali.*
 
-1. **Unduh Paket:** Unduh arsip mandiri [TB_Triage_Portable_Offline_Bundle.zip](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip) (ukuran berkas: 32.8 MB) pada komputer yang memiliki internet.
+1. **Unduh Paket:** Unduh arsip mandiri [TB_Triage_Portable_Offline_Bundle.zip](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip) (ukuran berkas: 32.8 MB) pada komputer yang memiliki internet.
 2. **Ekstrak ke Flashdisk:** Ekstrak seluruh isi arsip ZIP ke dalam USB Flashdisk.
 3. **Hubungkan ke Komputer Puskesmas:** Tancapkan USB Flashdisk ke komputer poli atau unit radiologi Puskesmas.
 4. **Jalankan Peluncur:**

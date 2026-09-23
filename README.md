@@ -1,9 +1,9 @@
 # Selective Conformal AI Architecture for Tuberculosis Triage
 ### Multi-Cohort Development, BioMedCLIP Distillation, and Independent External Stress-Testing
 
-[![Release: v2.0.0-distilled](https://img.shields.io/badge/Release-v2.0.0--distilled-059669.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/tag/v2.0.0-distilled)
+[![Release: v2.1.0-workstation](https://img.shields.io/badge/Release-v2.1.0--workstation-059669.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/tag/v2.1.0-workstation)
 [![Live Workstation: Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20Workstation-Hugging%20Face%20Space-yellow.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
-[![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-32.8%20MB%20ZIP-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
+[![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-32.8%20MB%20ZIP-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip)
 [![Baseline: v1.0.0-researchsquare](https://img.shields.io/badge/Baseline-v1.0.0--researchsquare-0284C7.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/tree/v1.0.0-researchsquare)
 [![DOI: Paper 1 (Research Square)](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg?style=flat-square)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
 [![Paper 2: medRxiv Priority Locked](https://img.shields.io/badge/medRxiv-Submitted%20(BioMedCLIP%20Distillation)-B31B1B.svg?style=flat-square)](https://www.medrxiv.org)
@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/%F0%9F%8C%90_LAUNCH_WEB_WORKSTATION-(FREE_%26_IN--BROWSER_WASM)-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Launch Web Workstation" height="42">
 </a>
 &nbsp;&nbsp;
-<a href="https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip">
+<a href="https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip">
   <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_OFFLINE_USB_BUNDLE-(32.8_MB_ZIP)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Download Offline USB Bundle" height="42">
 </a>
 
@@ -119,7 +119,7 @@ To address operational challenges in rural clinics and decentralized facilities 
 
 ### Technical Highlights
 
-* **Direct Download (Offline USB Bundle):** [TB_Triage_Portable_Offline_Bundle.zip (32.8 MB)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.0.0-distilled/TB_Triage_Portable_Offline_Bundle.zip)
+* **Direct Download (Offline USB Bundle):** [TB_Triage_Portable_Offline_Bundle.zip (32.8 MB)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip)
 * **Live In-Browser Workstation:** [Hugging Face Space (Ressshh/tb-conformal-triage-workstation)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
 * **Zero External Dependencies:** All runtime libraries (`ort.min.js`, `ort-wasm-simd.wasm`, KaTeX CSS and WOFF2 fonts) are bundled locally in `./vendor/`.
 * **Air-Gapped Cache:** Service Worker (`sw.js`) stores the 26.9 MB ONNX model directly inside browser Cache storage for permanent offline execution.

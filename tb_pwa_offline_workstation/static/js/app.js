@@ -101,6 +101,7 @@ let isSubmitting = false;
 let batchFiles = [];
 let batchResults = [];
 let isBatchRunning = false;
+let isBatchCancelled = false;
 
 // 1. Theme Management
 function toggleTheme() {
@@ -900,7 +901,7 @@ async function submitSingleTriage() {
             if (tempImg.complete) resolve();
             else {
                 tempImg.onload = resolve;
-                tempImg.onerror = reject;
+                tempImg.onerror = () => reject(new Error(currentLang === 'en' ? 'Corrupt or unreadable image file' : 'File foto rontgen rusak atau format tidak terbaca'));
             }
         });
 
@@ -922,6 +923,8 @@ async function submitSingleTriage() {
         setLoadingState(false);
         isSubmitting = false;
         console.error('[WASM INFERENCE ERROR]', wasmErr);
+        const resultsBox = document.getElementById('results-display');
+        if (resultsBox) resultsBox.style.display = 'block';
         renderIdiograph('ERROR_RUNTIME', wasmErr.message || 'WASM Execution Error');
     }
 }
@@ -1087,6 +1090,18 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
     if (!banner) return;
     banner.className = 'idiograph-banner';
 
+    // Case 0: Technical / Corrupt Image Runtime Error
+    if (action === 'ERROR_RUNTIME') {
+        banner.classList.add('action-reject');
+        if (badge) badge.innerText = t.actionRejectBadge;
+        if (title) title.innerText = t.errorRuntimeTitle || 'Kesalahan Pemrosesan Citra';
+        if (desc) desc.innerText = warning || t.errorRuntimeDesc || 'File citra rusak atau format tidak terbaca.';
+        if (iconContainer) {
+            iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+        }
+        return;
+    }
+
     // Case 1: Pre-Analytic Rejection
     if (iqaRejectCode || (action && action.startsWith('REJECT_'))) {
         const code = iqaRejectCode || action;
@@ -1217,7 +1232,7 @@ async function processBatchItem(file) {
     try {
         await new Promise((resolve, reject) => {
             tempImg.onload = resolve;
-            tempImg.onerror = reject;
+            tempImg.onerror = () => reject(new Error(currentLang === 'en' ? 'Corrupt or unreadable image file' : 'File citra rusak atau tidak dapat dibaca'));
         });
 
         // 1. Pre-Analytic Quality Assessment (Fail-Fast for Batch Items)
@@ -1257,23 +1272,69 @@ async function processBatchItem(file) {
         // 2. Client-Side WASM Inference with Real Latent OOD Check
         const data = await runClientSideInference(file, tempImg, iqaResult);
         return data;
+    } catch(imgErr) {
+        return {
+            filename: file.name,
+            predicted_class: 'Rejected',
+            probability_tb: 0.0,
+            probability_normal: 0.0,
+            decision_threshold_used: 0.4401,
+            triage_action: 'REJECT_CORRUPT_IMAGE',
+            conformal_details: {
+                conformal_set: ['Rejected'],
+                quantile_q0_normal: 0.2817,
+                quantile_q1_tb: 0.9551,
+                nominal_coverage_guarantee: 'N/A',
+                clinical_action_code: 'REJECT_CORRUPT_IMAGE',
+                safety_interlock_engaged: true
+            },
+            warning: imgErr.message || (currentLang === 'en' ? 'Corrupt image' : 'Citra rusak'),
+            iqa_report: {
+                quality_passed: false,
+                reject_code: 'REJECT_CORRUPT_IMAGE',
+                warnings: [imgErr.message || 'Corrupt or unreadable image file']
+            },
+            ood_report: {
+                mahalanobis_distance: 0,
+                threshold: 41.94,
+                is_ood: false,
+                warning: 'Corrupted image file'
+            },
+            allow_autonomous_release: false,
+            hirescam_heatmap_base64: null,
+            inference_latency_ms: 1,
+            execution_mode: 'IN_BROWSER_WASM'
+        };
     } finally {
         URL.revokeObjectURL(imgUrl);
     }
 }
 
+function cancelBatchProcessing() {
+    if (!isBatchRunning) return;
+    isBatchCancelled = true;
+    const cancelBtn = document.getElementById('btn-batch-cancel');
+    if (cancelBtn) cancelBtn.disabled = true;
+}
+
 async function startBatchProcessing() {
     if (batchFiles.length === 0 || isBatchRunning) return;
     isBatchRunning = true;
+    isBatchCancelled = false;
     batchResults = new Array(batchFiles.length);
 
     const startBtn = document.getElementById('btn-batch-start');
+    const cancelBtn = document.getElementById('btn-batch-cancel');
     const csvBtn = document.getElementById('btn-batch-csv');
     const progressBox = document.getElementById('batch-progress-box');
     const progressBar = document.getElementById('batch-progress-bar');
     const tbody = document.getElementById('batch-tbody');
 
     if (startBtn) startBtn.disabled = true;
+    if (cancelBtn) {
+        cancelBtn.style.display = 'inline-flex';
+        cancelBtn.disabled = false;
+    }
     if (csvBtn) csvBtn.disabled = true;
     if (progressBox) progressBox.style.display = 'block';
     if (tbody) tbody.innerHTML = '';
@@ -1290,6 +1351,7 @@ async function startBatchProcessing() {
 
     async function worker() {
         while (index < total) {
+            if (isBatchCancelled) break;
             const currentIndex = index++;
             const file = batchFiles[currentIndex];
 
@@ -1345,7 +1407,7 @@ async function startBatchProcessing() {
                 const statusCell = document.getElementById(`status-${currentIndex}`);
                 const actionCell = document.getElementById(`action-${currentIndex}`);
                 if (statusCell) statusCell.innerText = t.batchStatusFailed;
-                if (actionCell) actionCell.innerText = e.message;
+                if (actionCell) actionCell.innerText = e.message || 'Error';
             }
 
             completed++;
@@ -1363,7 +1425,19 @@ async function startBatchProcessing() {
     }
     await Promise.all(workers);
 
+    if (isBatchCancelled) {
+        const t = I18N_DICT[currentLang] || I18N_DICT.id;
+        for (let i = index; i < total; i++) {
+            const statusCell = document.getElementById(`status-${i}`);
+            const actionCell = document.getElementById(`action-${i}`);
+            if (statusCell) statusCell.innerText = t.batchStatusCancelled || 'Dibatalkan';
+            if (actionCell) actionCell.innerText = 'Dibatalkan';
+        }
+    }
+
     isBatchRunning = false;
+    isBatchCancelled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none';
     if (startBtn) startBtn.disabled = false;
     if (csvBtn) csvBtn.disabled = batchResults.filter(Boolean).length === 0;
 }
@@ -1396,11 +1470,20 @@ function inspectBatchItem(index) {
         if (returnBtn) returnBtn.style.display = 'inline-flex';
 
         if (data.is_rejection || (data.triage_action && data.triage_action.startsWith('REJECT_'))) {
-            renderRejectionResults(data.filename, data.iqa_report);
+            renderRejectionResults(data.filename, data.iqa_report || { reject_code: data.triage_action, warnings: [data.warning || 'Pre-analytic rejection'] });
         } else {
             renderSingleResults(data);
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    reader.onerror = function() {
+        switchMode('single');
+        const returnBtn = document.getElementById('btn-batch-return');
+        if (returnBtn) returnBtn.style.display = 'inline-flex';
+        renderRejectionResults(file.name, {
+            reject_code: 'REJECT_CORRUPT_IMAGE',
+            warnings: ['File rusak atau format tidak terbaca.']
+        });
     };
     reader.readAsDataURL(file);
 }
@@ -1417,10 +1500,12 @@ function resetBatchTriage() {
     if (statusLabel) statusLabel.innerText = t.batchQueueEmpty || 'Belum ada foto rontgen dalam antrean.';
     
     const startBtn = document.getElementById('btn-batch-start');
+    const cancelBtn = document.getElementById('btn-batch-cancel');
     const csvBtn = document.getElementById('btn-batch-csv');
     const progressBox = document.getElementById('batch-progress-box');
     const progressBar = document.getElementById('batch-progress-bar');
     if (startBtn) startBtn.disabled = true;
+    if (cancelBtn) cancelBtn.style.display = 'none';
     if (csvBtn) csvBtn.disabled = true;
     if (progressBox) progressBox.style.display = 'none';
     if (progressBar) progressBar.style.width = '0%';

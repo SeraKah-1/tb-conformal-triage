@@ -1,6 +1,6 @@
 {
   "name": "tb-conformal-triage-pwa",
-  "version": "1.3.0",
+  "version": "2.1.0",
   "description": "TB Conformal Triage Clinical Workstation - 100% Air-Gapped Offline PWA",
   "main": "server.js",
   "scripts": {
