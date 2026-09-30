@@ -6,7 +6,7 @@
 [![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-32.8%20MB%20ZIP-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip)
 [![Baseline: v1.0.0-researchsquare](https://img.shields.io/badge/Baseline-v1.0.0--researchsquare-0284C7.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/tree/v1.0.0-researchsquare)
 [![DOI: Paper 1 (Research Square)](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg?style=flat-square)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
-[![Paper 2: medRxiv Priority Locked](https://img.shields.io/badge/medRxiv-Submitted%20(BioMedCLIP%20Distillation)-B31B1B.svg?style=flat-square)](https://www.medrxiv.org)
+[![DOI: Paper 2 (Preprints.org)](https://img.shields.io/badge/DOI-10.20944%2Fpreprints202609.2451.v1-blue.svg?style=flat-square)](https://doi.org/10.20944/preprints202609.2451.v1)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://www.python.org/downloads/)
 [![Weights v11: Kaggle](https://img.shields.io/badge/Kaggle-Model%20Weights%20v11-20BEFF.svg?style=flat-square)](https://www.kaggle.com/datasets/mfarreladitya/tb-distilled-conformal-model-weights)
@@ -54,7 +54,7 @@ This repository provides the open-source implementation, serialized model weight
 * **Stage 2 (Paper 2: BioMedCLIP Tri-Loss Distillation):**  
   *"Distilling Multimodal Biomedical Foundation Models for Edge Tuberculosis Screening: Client-Side WebAssembly Deployment and Conformal Clinical Abstention"*  
   Lead Investigator: M. Farrel Aditya (Faculty of Medicine, Universitas Riau, Pekanbaru, Indonesia)  
-  Preprint: medRxiv (Submitted / Priority Locked)  
+  Preprint: [Preprints.org (2026)](https://doi.org/10.20944/preprints202609.2451.v1) | DOI: `10.20944/preprints202609.2451.v1`  
   Target Journal: *Computers in Biology and Medicine* (Elsevier, Scopus Top Q1, IF 7.7).
 
 ---
@@ -209,9 +209,10 @@ If you utilize this safety architecture, the BioMedCLIP distillation framework, 
 @article{aditya2026distilling,
   title={Distilling Multimodal Biomedical Foundation Models for Edge Tuberculosis Screening: Client-Side WebAssembly Deployment and Conformal Clinical Abstention},
   author={Aditya, M. Farrel},
-  journal={medRxiv Preprint},
+  journal={Preprints.org},
   year={2026},
-  note={Submitted / Priority Locked}
+  doi={10.20944/preprints202609.2451.v1},
+  url={https://doi.org/10.20944/preprints202609.2451.v1}
 }
 ```
 
