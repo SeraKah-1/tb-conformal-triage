@@ -411,6 +411,7 @@ body {
     overflow: hidden;
     border: 1px solid var(--border-color);
     user-select: none;
+    touch-action: none;
 }
 .slider-img {
     position: absolute;
@@ -450,6 +451,7 @@ body {
     color: var(--accent-blue);
     box-shadow: var(--shadow-md);
     pointer-events: none;
+    z-index: 11;
 }
 .slider-input-range {
     width: 100%;
@@ -868,5 +870,19 @@ body {
     border-color: var(--accent-blue);
     color: var(--accent-blue);
     background: var(--bg-subtle);
+}
+
+/* Mobile Responsive Enhancements (Screen width <= 768px) */
+@media (max-width: 768px) {
+    .top-nav {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .install-steps-row {
+        grid-template-columns: 1fr;
+    }
+    .samd-regulatory-bar {
+        align-items: flex-start;
+    }
 }
 

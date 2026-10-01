@@ -4,12 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Skrining Rontgen Dada Tuberkulosis (TB-CXR) - 100% Offline</title>
-    <!-- Local Vendor: KaTeX for medical mathematical formulas (Zero CDN) -->
-    <link rel="stylesheet" href="./vendor/katex/katex.min.css">
-    <script defer src="./vendor/katex/katex.min.js"></script>
-    <script defer src="./vendor/katex/auto-render.min.js" onload="if(typeof renderMathInElement==='function') renderMathInElement(document.body);"></script>
-    <!-- Local Vendor: ONNX Runtime Web for 100% Offline Client-Side WASM (Zero CDN) -->
-    <script src="./vendor/onnx/ort.min.js"></script>
+    <!-- Local Vendor with CDN Fallback: KaTeX for medical mathematical formulas -->
+    <link rel="stylesheet" href="./vendor/katex/katex.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';">
+    <script src="./vendor/katex/katex.min.js" onerror="this.onerror=null;window.useCdnKatex=true;"></script>
+    <script>
+        if (typeof katex === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script>');
+        }
+    </script>
+    <script src="./vendor/katex/auto-render.min.js" onerror="this.onerror=null;window.useCdnAutoRender=true;" onload="if(typeof renderMathInElement==='function') renderMathInElement(document.body);"></script>
+    <script>
+        if (typeof renderMathInElement === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="if(typeof renderMathInElement===\'function\') renderMathInElement(document.body);"><\/script>');
+        }
+    </script>
+    <!-- Local Vendor with CDN Fallback: ONNX Runtime Web for Client-Side WASM -->
+    <script src="./vendor/onnx/ort.min.js" onerror="this.onerror=null;window.useCdnWasm=true;"></script>
+    <script>
+        if (typeof ort === 'undefined') {
+            window.useCdnWasm = true;
+            document.write('<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"><\/script>');
+        }
+    </script>
     <!-- PWA Manifest & Metadata -->
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">

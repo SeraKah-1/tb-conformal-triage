@@ -255,6 +255,11 @@ function initSingleFileHandlers() {
 }
 
 function handleSingleFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/') && !file.name.match(/\.(png|jpe?g|webp)$/i)) {
+        alert(currentLang === 'en' ? 'Please upload a valid radiograph image (PNG, JPEG, WebP).' : 'Harap unggah file foto rontgen yang valid (PNG, JPEG, atau WebP).');
+        return;
+    }
     selectedFile = file;
     const labelName = document.getElementById('file-name-label') || document.getElementById('lbl-filename');
     const labelSize = document.getElementById('file-size-label') || document.getElementById('lbl-filesize');
@@ -342,18 +347,28 @@ async function getOrtSession() {
     isModelLoading = true;
     try {
         if (!window.ort) {
-            throw new Error('ONNX Runtime Web script not loaded from ./vendor/onnx/ort.min.js');
+            throw new Error('ONNX Runtime Web script not loaded.');
         }
-        ort.env.wasm.wasmPaths = "./vendor/onnx/";
-        ort.env.wasm.numThreads = 1;
-        ort.env.wasm.simd = true;
+        if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
+            ort.env.wasm.wasmPaths = window.useCdnWasm 
+                ? "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/" 
+                : "./vendor/onnx/";
+            ort.env.wasm.numThreads = 1;
+            ort.env.wasm.simd = true;
+        }
 
-        const modelUrl = (window.location.hostname.includes('hf.space') || window.location.hostname.includes('huggingface.co'))
-            ? 'https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/models/tb_conformal_distilled_v11_cam.onnx'
-            : './models/tb_conformal_distilled_v11_cam.onnx';
-        ortSession = await ort.InferenceSession.create(modelUrl, {
-            executionProviders: ['wasm']
-        });
+        let modelUrl = './models/tb_conformal_distilled_v11_cam.onnx';
+        try {
+            ortSession = await ort.InferenceSession.create(modelUrl, {
+                executionProviders: ['wasm']
+            });
+        } catch(localModelErr) {
+            console.warn('[ORT] Local model load failed, attempting Hugging Face CDN fallback...', localModelErr);
+            modelUrl = 'https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/models/tb_conformal_distilled_v11_cam.onnx';
+            ortSession = await ort.InferenceSession.create(modelUrl, {
+                executionProviders: ['wasm']
+            });
+        }
         console.log('[ORT] DenseNet-121 in-browser inference session ready from:', modelUrl);
     } catch(err) {
         console.error('[ORT INIT ERROR]', err);
@@ -586,7 +601,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
 
     if (!isSufficientRes) {
         rejectCode = 'REJECT_LOW_RESOLUTION';
-        warnings.push('Low resolution (' + w + 'x' + h + ' px). Apical textures cannot be verified.');
+        warnings.push('Low resolution (' + origW + 'x' + origH + ' px). Apical textures cannot be verified.');
     } else if (!isValidAr) {
         rejectCode = 'REJECT_INVALID_ASPECT_RATIO';
         warnings.push('Non-standard aspect ratio (' + ar.toFixed(2) + '). Valid CXR range is 0.65 - 1.55.');
@@ -747,9 +762,14 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
     }
     camCtx.putImageData(imgData, 0, 0);
 
+    const maxHeatDim = 1280;
+    const scaleHeat = Math.min(1.0, maxHeatDim / Math.max(origWidth || 512, origHeight || 512));
+    const outW = Math.round((origWidth || 512) * scaleHeat);
+    const outH = Math.round((origHeight || 512) * scaleHeat);
+
     const outCanvas = document.createElement('canvas');
-    outCanvas.width = origWidth || 512;
-    outCanvas.height = origHeight || 512;
+    outCanvas.width = outW;
+    outCanvas.height = outH;
     const outCtx = outCanvas.getContext('2d');
     outCtx.imageSmoothingEnabled = true;
     outCtx.imageSmoothingQuality = 'high';
@@ -770,34 +790,45 @@ async function runClientSideInference(file, imageElement, iqaResult) {
     const latents = results.latents.data;
 
     // Real Latent Feature OOD Detection (Mahalanobis Distance to Reference Cohort)
-    let sumSq0 = 0.0;
-    let sumSq1 = 0.0;
-    const mu0 = OOD_REFERENCE_CALIBRATION.mu_0;
-    const mu1 = OOD_REFERENCE_CALIBRATION.mu_1;
-    const stdInv = OOD_REFERENCE_CALIBRATION.std_inv;
+    const hasOodCalib = (typeof OOD_REFERENCE_CALIBRATION !== 'undefined' && OOD_REFERENCE_CALIBRATION && OOD_REFERENCE_CALIBRATION.mu_0);
+    let d0 = 0.0;
+    let d1 = 0.0;
+    let dMin = 0.0;
+    let isOod = false;
+    const thresholdDiag = hasOodCalib ? OOD_REFERENCE_CALIBRATION.threshold_diag : 41.94;
 
-    for (let i = 0; i < 1024; i++) {
-        const diff0 = (latents[i] - mu0[i]) * stdInv[i];
-        const diff1 = (latents[i] - mu1[i]) * stdInv[i];
-        sumSq0 += diff0 * diff0;
-        sumSq1 += diff1 * diff1;
+    if (hasOodCalib) {
+        let sumSq0 = 0.0;
+        let sumSq1 = 0.0;
+        const mu0 = OOD_REFERENCE_CALIBRATION.mu_0;
+        const mu1 = OOD_REFERENCE_CALIBRATION.mu_1;
+        const stdInv = OOD_REFERENCE_CALIBRATION.std_inv;
+
+        for (let i = 0; i < 1024; i++) {
+            const diff0 = (latents[i] - mu0[i]) * stdInv[i];
+            const diff1 = (latents[i] - mu1[i]) * stdInv[i];
+            sumSq0 += diff0 * diff0;
+            sumSq1 += diff1 * diff1;
+        }
+        d0 = Math.sqrt(sumSq0);
+        d1 = Math.sqrt(sumSq1);
+        dMin = Math.min(d0, d1);
+        isOod = (dMin > thresholdDiag);
+    } else {
+        console.warn('[OOD] OOD_REFERENCE_CALIBRATION not loaded, defaulting to in-distribution.');
     }
-    const d0 = Math.sqrt(sumSq0);
-    const d1 = Math.sqrt(sumSq1);
-    const dMin = Math.min(d0, d1);
-    const isOod = (dMin > OOD_REFERENCE_CALIBRATION.threshold_diag);
 
     const oodWarning = isOod
         ? (currentLang === 'id'
-            ? 'Anomali OOD: Representasi fitur laten citra menyimpang dari populasi kalibrasi rontgen toraks (Jarak ' + dMin.toFixed(2) + ' > ' + OOD_REFERENCE_CALIBRATION.threshold_diag + '). Wajib telaah dokter spesialis.'
-            : 'OOD Anomaly: Latent feature representation diverges from thoracic reference population (Distance ' + dMin.toFixed(2) + ' > ' + OOD_REFERENCE_CALIBRATION.threshold_diag + '). Expert physician review mandatory.')
+            ? 'Anomali OOD: Representasi fitur laten citra menyimpang dari populasi kalibrasi rontgen toraks (Jarak ' + dMin.toFixed(2) + ' > ' + thresholdDiag + '). Wajib telaah dokter spesialis.'
+            : 'OOD Anomaly: Latent feature representation diverges from thoracic reference population (Distance ' + dMin.toFixed(2) + ' > ' + thresholdDiag + '). Expert physician review mandatory.')
         : null;
 
     const oodReport = {
         mahalanobis_distance: parseFloat(dMin.toFixed(2)),
         distance_to_normal: parseFloat(d0.toFixed(2)),
         distance_to_tb: parseFloat(d1.toFixed(2)),
-        threshold: OOD_REFERENCE_CALIBRATION.threshold_diag,
+        threshold: thresholdDiag,
         is_ood: isOod,
         warning: oodWarning
     };
@@ -1209,7 +1240,7 @@ function initBatchHandlers() {
 }
 
 function queueBatchFiles(files) {
-    batchFiles = files.filter(f => f.name.match(/\.(png|jpe?g|dcm)$/i));
+    batchFiles = files.filter(f => f.name.match(/\.(png|jpe?g|webp)$/i));
     const statusLabel = document.getElementById('batch-queue-status');
     const startBtn = document.getElementById('btn-batch-start');
     const kpiTotal = document.getElementById('kpi-total-val');
@@ -1542,10 +1573,12 @@ function exportBatchCsv() {
 
     const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    link.href = blobUrl;
     link.download = `TB_Conformal_Triage_Roster_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 }
 
 // 9. Initialization

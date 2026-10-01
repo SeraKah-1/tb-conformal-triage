@@ -50,7 +50,10 @@ function initSliderInteractions() {
         var clientX = e.clientX;
         if (e.touches && e.touches.length > 0) {
             clientX = e.touches[0].clientX;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            clientX = e.changedTouches[0].clientX;
         }
+        if (clientX === undefined || isNaN(clientX)) return;
         var offsetX = clientX - rect.left;
         var pct = rect.width > 0 ? Math.max(0, Math.min(100, (offsetX / rect.width) * 100)) : 50;
         onSliderMove(Math.round(pct));
@@ -71,6 +74,7 @@ function initSliderInteractions() {
 
     window.addEventListener('touchmove', handlePointerMove, { passive: true });
     window.addEventListener('touchend', function() { isDragging = false; });
+    window.addEventListener('touchcancel', function() { isDragging = false; });
 }
 
 document.addEventListener('DOMContentLoaded', initSliderInteractions);
