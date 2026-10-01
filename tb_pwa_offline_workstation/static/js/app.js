@@ -335,41 +335,199 @@ async function loadBenchmarkCase(sampleName) {
 let ortSession = null;
 let isModelLoading = false;
 
-async function getOrtSession() {
+// IndexedDB Model Blob Cache for 0ms offline retrieval
+const MODEL_CACHE_DB = 'tb_triage_model_cache_v1';
+const MODEL_CACHE_STORE = 'model_blobs';
+const MODEL_CACHE_KEY = 'tb_conformal_distilled_v11_cam.onnx';
+
+function getCachedModelBuffer() {
+    return new Promise(function(resolve) {
+        try {
+            if (!window.indexedDB) return resolve(null);
+            const req = indexedDB.open(MODEL_CACHE_DB, 1);
+            req.onupgradeneeded = function(e) {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(MODEL_CACHE_STORE)) {
+                    db.createObjectStore(MODEL_CACHE_STORE);
+                }
+            };
+            req.onsuccess = function(e) {
+                const db = e.target.result;
+                const tx = db.transaction(MODEL_CACHE_STORE, 'readonly');
+                const store = tx.objectStore(MODEL_CACHE_STORE);
+                const getReq = store.get(MODEL_CACHE_KEY);
+                getReq.onsuccess = function() {
+                    const buf = getReq.result;
+                    if (buf && buf.byteLength > 20000000) {
+                        resolve(buf);
+                    } else {
+                        resolve(null);
+                    }
+                };
+                getReq.onerror = function() { resolve(null); };
+            };
+            req.onerror = function() { resolve(null); };
+        } catch (e) {
+            resolve(null);
+        }
+    });
+}
+
+function saveCachedModelBuffer(buffer) {
+    return new Promise(function(resolve) {
+        try {
+            if (!window.indexedDB || !buffer || buffer.byteLength < 20000000) return resolve(false);
+            const req = indexedDB.open(MODEL_CACHE_DB, 1);
+            req.onupgradeneeded = function(e) {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(MODEL_CACHE_STORE)) {
+                    db.createObjectStore(MODEL_CACHE_STORE);
+                }
+            };
+            req.onsuccess = function(e) {
+                const db = e.target.result;
+                const tx = db.transaction(MODEL_CACHE_STORE, 'readwrite');
+                const store = tx.objectStore(MODEL_CACHE_STORE);
+                store.put(buffer, MODEL_CACHE_KEY);
+                tx.oncomplete = function() { resolve(true); };
+                tx.onerror = function() { resolve(false); };
+            };
+            req.onerror = function() { resolve(false); };
+        } catch (e) {
+            resolve(false);
+        }
+    });
+}
+
+function canUseWasmSimd() {
+    try {
+        return typeof WebAssembly === 'object' && typeof WebAssembly.validate === 'function' &&
+            WebAssembly.validate(new Uint8Array([
+                0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11
+            ]));
+    } catch (e) {
+        return false;
+    }
+}
+
+async function fetchModelBufferWithFallback(onProgress) {
+    // 1. Check local IndexedDB cache first (0 ms instant offline loading)
+    const cached = await getCachedModelBuffer();
+    if (cached) {
+        console.log('[Model Loader] Loaded model from local IndexedDB cache (' + (cached.byteLength / (1024 * 1024)).toFixed(1) + ' MB). 0ms network latency.');
+        if (onProgress) onProgress(100, cached.byteLength, cached.byteLength);
+        return cached;
+    }
+
+    const candidateUrls = [
+        './models/tb_conformal_distilled_v11_cam.onnx',
+        new URL('./models/tb_conformal_distilled_v11_cam.onnx', document.baseURI || window.location.href).href,
+        'https://ressshh-tb-conformal-triage-workstation.static.hf.space/models/tb_conformal_distilled_v11_cam.onnx',
+        'https://raw.githubusercontent.com/SeraKah-1/tb-conformal-triage/main/tb_pwa_offline_workstation/models/tb_conformal_distilled_v11_cam.onnx'
+    ];
+
+    const uniqueUrls = [];
+    candidateUrls.forEach(function(u) {
+        if (!uniqueUrls.includes(u)) uniqueUrls.push(u);
+    });
+
+    let lastError = null;
+    for (let i = 0; i < uniqueUrls.length; i++) {
+        const url = uniqueUrls[i];
+        try {
+            console.log('[Model Loader] Attempting download (' + (i + 1) + '/' + uniqueUrls.length + '): ' + url);
+            const res = await fetch(url, { mode: 'cors' });
+            if (!res.ok) {
+                throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+            }
+
+            const contentLengthHeader = res.headers.get('content-length');
+            const totalBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 28229016;
+
+            if (!res.body || typeof res.body.getReader !== 'function') {
+                const buffer = await res.arrayBuffer();
+                if (buffer.byteLength < 1000000) {
+                    throw new Error('Downloaded file too small (' + buffer.byteLength + ' bytes), unexpected body');
+                }
+                saveCachedModelBuffer(buffer);
+                return buffer;
+            }
+
+            const reader = res.body.getReader();
+            const chunks = [];
+            let receivedBytes = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                receivedBytes += value.length;
+                if (onProgress) {
+                    const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
+                    onProgress(percent, receivedBytes, totalBytes);
+                }
+            }
+
+            const totalBuffer = new Uint8Array(receivedBytes);
+            let offset = 0;
+            for (let c = 0; c < chunks.length; c++) {
+                totalBuffer.set(chunks[c], offset);
+                offset += chunks[c].length;
+            }
+
+            if (totalBuffer.byteLength < 1000000) {
+                throw new Error('Downloaded file too small (' + totalBuffer.byteLength + ' bytes)');
+            }
+
+            const finalArrayBuffer = totalBuffer.buffer;
+            saveCachedModelBuffer(finalArrayBuffer);
+            console.log('[Model Loader] Model download successful (' + (finalArrayBuffer.byteLength / (1024 * 1024)).toFixed(1) + ' MB). Cached in IndexedDB.');
+            return finalArrayBuffer;
+        } catch (err) {
+            console.warn('[Model Loader] Failed from source ' + url + ':', err.message);
+            lastError = err;
+        }
+    }
+
+    throw new Error('Semua sumber model gagal diunduh: ' + (lastError ? lastError.message : 'Network error'));
+}
+
+async function getOrtSession(progressCallback) {
     if (ortSession) return ortSession;
     if (isModelLoading) {
         while (isModelLoading) {
             await new Promise(r => setTimeout(r, 150));
         }
-        return ortSession;
+        if (ortSession) return ortSession;
     }
 
     isModelLoading = true;
     try {
         if (!window.ort) {
-            throw new Error('ONNX Runtime Web script not loaded.');
-        }
-        if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
-            ort.env.wasm.wasmPaths = window.useCdnWasm 
-                ? "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/" 
-                : "./vendor/onnx/";
-            ort.env.wasm.numThreads = 1;
-            ort.env.wasm.simd = true;
+            throw new Error(currentLang === 'id' ? 'Script ONNX Runtime Web belum selesai dimuat.' : 'ONNX Runtime Web script not loaded.');
         }
 
-        let modelUrl = './models/tb_conformal_distilled_v11_cam.onnx';
-        try {
-            ortSession = await ort.InferenceSession.create(modelUrl, {
-                executionProviders: ['wasm']
-            });
-        } catch(localModelErr) {
-            console.warn('[ORT] Local model load failed, attempting Hugging Face CDN fallback...', localModelErr);
-            modelUrl = 'https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/models/tb_conformal_distilled_v11_cam.onnx';
-            ortSession = await ort.InferenceSession.create(modelUrl, {
-                executionProviders: ['wasm']
-            });
+        if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
+            const hasSimd = canUseWasmSimd();
+            ort.env.wasm.simd = hasSimd;
+            ort.env.wasm.numThreads = 1;
+
+            const baseHref = document.baseURI || window.location.href;
+            const localWasmPath = new URL('./vendor/onnx/', baseHref).href;
+            ort.env.wasm.wasmPaths = window.useCdnWasm 
+                ? "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/" 
+                : localWasmPath;
         }
-        console.log('[ORT] DenseNet-121 in-browser inference session ready from:', modelUrl);
+
+        const modelBuffer = await fetchModelBufferWithFallback(progressCallback);
+        const uint8Data = new Uint8Array(modelBuffer);
+
+        ortSession = await ort.InferenceSession.create(uint8Data, {
+            executionProviders: ['wasm'],
+            graphOptimizationLevel: 'all'
+        });
+
+        console.log('[ORT] DenseNet-121 in-browser inference session ready. Inputs:', ortSession.inputNames, 'Outputs:', ortSession.outputNames);
     } catch(err) {
         console.error('[ORT INIT ERROR]', err);
         throw err;
@@ -946,6 +1104,24 @@ async function submitSingleTriage() {
         }
 
         // 2. Pure 100% In-Browser WebAssembly Inference (0ms Network Latency, Air-Gapped Local RAM)
+        const progressCb = function(percent, received, total) {
+            const receivedMb = (received / (1024 * 1024)).toFixed(1);
+            const totalMb = (total / (1024 * 1024)).toFixed(1);
+            const title = currentLang === 'id' 
+                ? 'Menyiapkan Model AI: ' + percent + '% (' + receivedMb + ' / ' + totalMb + ' MB)'
+                : 'Preparing AI Model: ' + percent + '% (' + receivedMb + ' / ' + totalMb + ' MB)';
+            const sub = currentLang === 'id'
+                ? 'Mengunduh model ke memori peramban (hanya 1x, otomatis tersimpan offline)...'
+                : 'Loading model into browser RAM (cached offline for future use)...';
+            setLoadingState(true, title, sub);
+        };
+
+        await getOrtSession(progressCb);
+        setLoadingState(true, 
+            currentLang === 'id' ? 'Memeriksa Foto Rontgen Dada...' : 'Analyzing Chest Radiograph...',
+            currentLang === 'id' ? 'Sedang meneliti corakan paru dan mencari tanda bercak TB aktif...' : 'Screening lung fields and detecting signs of active TB lesions...'
+        );
+
         const data = await runClientSideInference(selectedFile, tempImg, iqaResult);
         setLoadingState(false);
         isSubmitting = false;
@@ -960,15 +1136,19 @@ async function submitSingleTriage() {
     }
 }
 
-function setLoadingState(isLoading) {
+function setLoadingState(isLoading, titleText, subText) {
     const emptyBox = document.getElementById('empty-state');
     const loadingBox = document.getElementById('loading-state');
     const resultsBox = document.getElementById('results-display');
     const submitBtn = document.getElementById('btn-submit');
+    const titleEl = document.getElementById('txt-loading-title');
+    const subEl = document.getElementById('txt-loading-sub');
 
     if (submitBtn) submitBtn.disabled = isLoading;
 
     if (isLoading) {
+        if (titleText && titleEl) titleEl.innerText = titleText;
+        if (subText && subEl) subEl.innerText = subText;
         if (emptyBox) emptyBox.style.display = 'none';
         if (resultsBox) resultsBox.style.display = 'none';
         if (loadingBox) loadingBox.style.display = 'block';
@@ -1124,9 +1304,9 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
     // Case 0: Technical / Corrupt Image Runtime Error
     if (action === 'ERROR_RUNTIME') {
         banner.classList.add('action-reject');
-        if (badge) badge.innerText = t.actionRejectBadge;
-        if (title) title.innerText = t.errorRuntimeTitle || 'Kesalahan Pemrosesan Citra';
-        if (desc) desc.innerText = warning || t.errorRuntimeDesc || 'File citra rusak atau format tidak terbaca.';
+        if (badge) badge.innerText = currentLang === 'en' ? 'AI ENGINE ERROR' : 'KESALAHAN SISTEM RUNTIME';
+        if (title) title.innerText = currentLang === 'en' ? 'AI Model Execution Error' : 'Gagal Menjalankan Mesin AI';
+        if (desc) desc.innerText = warning || (currentLang === 'en' ? 'Model failed to initialize or execute.' : 'Terjadi kendala saat memuat atau menjalankan model AI.');
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
         }
@@ -1369,6 +1549,16 @@ async function startBatchProcessing() {
     if (csvBtn) csvBtn.disabled = true;
     if (progressBox) progressBox.style.display = 'block';
     if (tbody) tbody.innerHTML = '';
+
+    try {
+        await getOrtSession();
+    } catch(modelErr) {
+        isBatchRunning = false;
+        if (startBtn) startBtn.disabled = false;
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        alert((currentLang === 'id' ? 'Gagal menyiapkan model AI: ' : 'Failed to prepare AI model: ') + modelErr.message);
+        return;
+    }
 
     let normalCount = 0;
     let tbCount = 0;
