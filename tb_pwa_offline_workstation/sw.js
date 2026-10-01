@@ -1,6 +1,6 @@
 // TB Conformal Triage Clinical Workstation - Offline Service Worker
 // Enforces 100% Air-Gapped Operation via Cache-First Strategy
-const CACHE_NAME = 'tb-conformal-offline-v2.1';
+const CACHE_NAME = 'tb-conformal-offline-v2.2';
 
 const ASSETS_TO_CACHE = [
   './',

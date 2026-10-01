@@ -336,7 +336,7 @@ let ortSession = null;
 let isModelLoading = false;
 
 // IndexedDB Model Blob Cache for 0ms offline retrieval
-const MODEL_CACHE_DB = 'tb_triage_model_cache_v1';
+const MODEL_CACHE_DB = 'tb_triage_model_cache_v2';
 const MODEL_CACHE_STORE = 'model_blobs';
 const MODEL_CACHE_KEY = 'tb_conformal_distilled_v11_cam.onnx';
 
@@ -863,6 +863,10 @@ function preprocessImageForONNX(imageElement, isInverted = false) {
 }
 
 function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
+    if (!camArray || !camArray.length) {
+        return null;
+    }
+
     // If patient is Normal or TB probability is under 50% (Normal favored), suppress heatmap.
     // Clinically, normal or equivocal radiographs must not display false positive lesion hotspots on cortical bone.
     if (probTb !== undefined && probTb < 0.50) {
@@ -943,17 +947,27 @@ async function runClientSideInference(file, imageElement, iqaResult) {
     const tensor = preprocessImageForONNX(imageElement, isInverted);
 
     const results = await session.run({ input: tensor });
-    const logits = results.logits.data;
-    const camData = results.cam.data;
-    const latents = results.latents.data;
+
+    // Defensive Multi-Tier Output Extraction
+    const logitsTensor = results.logits || (session.outputNames && results[session.outputNames[0]]) || Object.values(results)[0];
+    if (!logitsTensor || !logitsTensor.data) {
+        throw new Error('Logits tensor missing from model output. Available outputs: ' + Object.keys(results).join(', '));
+    }
+    const logits = logitsTensor.data;
+
+    const camTensor = results.cam || (session.outputNames && results[session.outputNames[1]]);
+    const camData = (camTensor && camTensor.data) ? camTensor.data : null;
+
+    const latentsTensor = results.latents || (session.outputNames && results[session.outputNames[2]]);
+    const latents = (latentsTensor && latentsTensor.data) ? latentsTensor.data : null;
 
     // Real Latent Feature OOD Detection (Mahalanobis Distance to Reference Cohort)
-    const hasOodCalib = (typeof OOD_REFERENCE_CALIBRATION !== 'undefined' && OOD_REFERENCE_CALIBRATION && OOD_REFERENCE_CALIBRATION.mu_0);
+    const hasOodCalib = Boolean(typeof OOD_REFERENCE_CALIBRATION !== 'undefined' && OOD_REFERENCE_CALIBRATION && OOD_REFERENCE_CALIBRATION.mu_0 && latents && latents.length >= 1024);
     let d0 = 0.0;
     let d1 = 0.0;
     let dMin = 0.0;
     let isOod = false;
-    const thresholdDiag = hasOodCalib ? OOD_REFERENCE_CALIBRATION.threshold_diag : 41.94;
+    const thresholdDiag = (typeof OOD_REFERENCE_CALIBRATION !== 'undefined' && OOD_REFERENCE_CALIBRATION && OOD_REFERENCE_CALIBRATION.threshold_diag) ? OOD_REFERENCE_CALIBRATION.threshold_diag : 41.94;
 
     if (hasOodCalib) {
         let sumSq0 = 0.0;
@@ -973,7 +987,11 @@ async function runClientSideInference(file, imageElement, iqaResult) {
         dMin = Math.min(d0, d1);
         isOod = (dMin > thresholdDiag);
     } else {
-        console.warn('[OOD] OOD_REFERENCE_CALIBRATION not loaded, defaulting to in-distribution.');
+        if (!latents) {
+            console.warn('[OOD] Model does not provide latents tensor output. OOD Mahalanobis check bypassed gracefully.');
+        } else {
+            console.warn('[OOD] OOD_REFERENCE_CALIBRATION not loaded, defaulting to in-distribution.');
+        }
     }
 
     const oodWarning = isOod
@@ -1040,7 +1058,7 @@ async function runClientSideInference(file, imageElement, iqaResult) {
         }
     }
 
-    const heatDataUrl = isOod ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
+    const heatDataUrl = (isOod || !camData) ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
     const heatBase64 = heatDataUrl;
     const latMs = Math.round(performance.now() - t0);
 

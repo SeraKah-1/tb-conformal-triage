@@ -49,6 +49,20 @@ if os.path.exists(os.path.join(src_dir, 'samples')):
 if os.path.exists(os.path.join(src_dir, 'vendor')):
     shutil.copytree(os.path.join(src_dir, 'vendor'), os.path.join(staging_dir, 'vendor'), dirs_exist_ok=True)
 
+# Models (Distilled Tri-Output ONNX: logits, cam, latents)
+if os.path.exists(os.path.join(src_dir, 'models')):
+    shutil.copytree(os.path.join(src_dir, 'models'), os.path.join(staging_dir, 'models'), dirs_exist_ok=True)
+
+# Standalone Launchers & Packages
+if os.path.exists(os.path.join(src_dir, 'buka_aplikasi_offline.bat')):
+    shutil.copy2(os.path.join(src_dir, 'buka_aplikasi_offline.bat'), os.path.join(staging_dir, 'buka_aplikasi_offline.bat'))
+if os.path.exists(os.path.join(src_dir, 'buka_aplikasi_offline.sh')):
+    shutil.copy2(os.path.join(src_dir, 'buka_aplikasi_offline.sh'), os.path.join(staging_dir, 'buka_aplikasi_offline.sh'))
+if os.path.exists(os.path.join(src_dir, 'package.json')):
+    shutil.copy2(os.path.join(src_dir, 'package.json'), os.path.join(staging_dir, 'package.json'))
+if os.path.exists(os.path.join(src_dir, 'server.js')):
+    shutil.copy2(os.path.join(src_dir, 'server.js'), os.path.join(staging_dir, 'server.js'))
+
 print(f'[2/4] Staging ready at {staging_dir}. Listing files:')
 for root, _, files in os.walk(staging_dir):
     for f in files:
@@ -63,7 +77,7 @@ try:
         folder_path=staging_dir,
         repo_id=REPO_ID,
         repo_type='space',
-        commit_message='Release v2.1.2: Eliminate model fallback via ArrayBuffer pre-fetch, IndexedDB offline cache, and WASM SIMD hardware detection'
+        commit_message='Release v2.1.3: Deploy tri-output ONNX model (logits, cam, latents), bump cache keys, and add defensive multi-tier tensor extraction'
     )
     print('[4/4] Atomic upload succeeded! Commit:', commit_info)
 except Exception as e:
