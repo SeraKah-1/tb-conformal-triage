@@ -555,7 +555,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     }
 
     const ar = origW / origH;
-    const isValidAr = (ar >= 0.65 && ar <= 1.55);
+    const isValidAr = (ar >= 0.55 && ar <= 1.75);
     const isSufficientRes = (origW >= 256 && origH >= 256);
 
     // Standardize analysis canvas dimensions to max 512px for instant (< 5ms) processing
@@ -608,7 +608,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     }
 
     const meanSat = totalSatDelta / totalPixels;
-    const isColor = meanSat > 25.0;
+    const isColor = meanSat > 140.0;
 
     // Dynamic contrast range via histogram percentiles P1 & P99
     const countP1 = Math.floor(totalPixels * 0.01);
@@ -752,7 +752,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
             blockinessScore = 0.5 * ((meanBh / meanIh) + (meanBv / meanIv));
         }
     }
-    const isHeavyCompression = blockinessScore > 1.40;
+    const isHeavyCompression = blockinessScore > 3.00;
 
     const warnings = [];
     let rejectCode = null;
@@ -762,10 +762,10 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
         warnings.push('Low resolution (' + origW + 'x' + origH + ' px). Apical textures cannot be verified.');
     } else if (!isValidAr) {
         rejectCode = 'REJECT_INVALID_ASPECT_RATIO';
-        warnings.push('Non-standard aspect ratio (' + ar.toFixed(2) + '). Valid CXR range is 0.65 - 1.55.');
+        warnings.push('Non-standard aspect ratio (' + ar.toFixed(2) + '). Valid CXR range is 0.55 - 1.75.');
     } else if (isColor) {
         rejectCode = 'REJECT_NON_RADIOGRAPH_COLOR';
-        warnings.push('Full color image detected (Saturation index ' + meanSat.toFixed(1) + ' > 25.0). CXR must be monochrome.');
+        warnings.push('Full color image detected (Saturation index ' + meanSat.toFixed(1) + ' > 140.0). CXR must be monochrome or blue-base film.');
     } else if (isInvalidAnatomyDoc) {
         rejectCode = 'REJECT_INVALID_ANATOMY_DOCUMENT';
         warnings.push('Invalid anatomy: Document or blank page detected (White: ' + (whiteRatio * 100).toFixed(1) + '%, Black: ' + (blackRatio * 100).toFixed(1) + '%).');
@@ -774,7 +774,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
         warnings.push('Low dynamic contrast range (' + dynamicRange.toFixed(1) + ' < 35.0). Image is washed out or flat.');
     } else if (isHeavyCompression) {
         rejectCode = 'REJECT_HEAVY_COMPRESSION';
-        warnings.push('Severe compression artifacts (Blockiness ' + blockinessScore.toFixed(2) + ' > 1.40). Risk of spurious reticular noise.');
+        warnings.push('Severe compression artifacts (Blockiness ' + blockinessScore.toFixed(2) + ' > 3.00). Risk of spurious reticular noise.');
     }
 
     if (isInverted) {
