@@ -631,10 +631,10 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     const dynamicRange = p99 - p1;
     const isSufficientContrast = dynamicRange >= 35.0;
 
-    // Modality / Anatomy Guard
+    // Modality / Anatomy Guard (True non-radiograph blank document / empty sensor)
     const whiteRatio = countWhite / totalPixels;
     const blackRatio = countBlack / totalPixels;
-    const isInvalidAnatomyDoc = (whiteRatio > 0.60) || (blackRatio > 0.70);
+    const isInvalidAnatomyDoc = (whiteRatio > 0.85) || (blackRatio > 0.90);
 
     // Photometric Polarity Check: 4 corners (8% margin, min 4 px) vs center zone (x: 40-60%, y: 35-65%)
     const cH = Math.max(4, Math.floor(0.08 * h));
@@ -752,36 +752,46 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
             blockinessScore = 0.5 * ((meanBh / meanIh) + (meanBv / meanIv));
         }
     }
-    const isHeavyCompression = blockinessScore > 3.00;
+    const isElevatedCompression = blockinessScore > 1.70;
 
-    const warnings = [];
-    let rejectCode = null;
+    // SOTA Clinical Pre-Analytic Advisories (Informative Flagging: do NOT abort model inference)
+    const advisoryWarnings = [];
+    let hasQualityAdvisory = false;
 
     if (!isSufficientRes) {
-        rejectCode = 'REJECT_LOW_RESOLUTION';
-        warnings.push('Low resolution (' + origW + 'x' + origH + ' px). Apical textures cannot be verified.');
-    } else if (!isValidAr) {
-        rejectCode = 'REJECT_INVALID_ASPECT_RATIO';
-        warnings.push('Non-standard aspect ratio (' + ar.toFixed(2) + '). Valid CXR range is 0.55 - 1.75.');
-    } else if (isColor) {
-        rejectCode = 'REJECT_NON_RADIOGRAPH_COLOR';
-        warnings.push('Full color image detected (Saturation index ' + meanSat.toFixed(1) + ' > 140.0). CXR must be monochrome or blue-base film.');
-    } else if (isInvalidAnatomyDoc) {
+        hasQualityAdvisory = true;
+        advisoryWarnings.push('Low resolution (' + origW + 'x' + origH + ' px). Apical textures may require careful scrutiny.');
+    }
+    if (!isValidAr) {
+        hasQualityAdvisory = true;
+        advisoryWarnings.push('Non-standard aspect ratio (' + ar.toFixed(2) + '). Ensure full thoracic field is visible.');
+    }
+    if (isColor) {
+        hasQualityAdvisory = true;
+        advisoryWarnings.push('Chromatic saturation present (Index ' + meanSat.toFixed(1) + '). Monochromatic conversion applied.');
+    }
+    if (!isSufficientContrast) {
+        hasQualityAdvisory = true;
+        advisoryWarnings.push('Low dynamic contrast range (' + dynamicRange.toFixed(1) + ' < 35.0). Parenchymal detail may be attenuated.');
+    }
+    if (isElevatedCompression) {
+        hasQualityAdvisory = true;
+        advisoryWarnings.push('Elevated compression artifacts (Blockiness ' + blockinessScore.toFixed(2) + ' > 1.70). Interpreted under noise guard.');
+    }
+
+    // Hard Technical Abort only for True Physical/Modality Corruptions
+    let rejectCode = null;
+    let qualityPassed = true;
+
+    if (isInvalidAnatomyDoc) {
         rejectCode = 'REJECT_INVALID_ANATOMY_DOCUMENT';
-        warnings.push('Invalid anatomy: Document or blank page detected (White: ' + (whiteRatio * 100).toFixed(1) + '%, Black: ' + (blackRatio * 100).toFixed(1) + '%).');
-    } else if (!isSufficientContrast) {
-        rejectCode = 'REJECT_LOW_CONTRAST';
-        warnings.push('Low dynamic contrast range (' + dynamicRange.toFixed(1) + ' < 35.0). Image is washed out or flat.');
-    } else if (isHeavyCompression) {
-        rejectCode = 'REJECT_HEAVY_COMPRESSION';
-        warnings.push('Severe compression artifacts (Blockiness ' + blockinessScore.toFixed(2) + ' > 3.00). Risk of spurious reticular noise.');
+        qualityPassed = false;
+        advisoryWarnings.push('Non-radiograph payload: Blank page or text document detected.');
     }
 
     if (isInverted) {
-        warnings.push('Photometric polarity inverted (MONOCHROME1). Auto-correction active.');
+        advisoryWarnings.push('Photometric polarity inverted (MONOCHROME1). Auto-correction active.');
     }
-
-    const qualityPassed = (rejectCode === null);
 
     return {
         aspect_ratio: parseFloat(ar.toFixed(3)),
@@ -797,10 +807,11 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
         black_pixel_ratio: parseFloat(blackRatio.toFixed(3)),
         is_inverted: isInverted,
         blockiness_score: parseFloat(blockinessScore.toFixed(3)),
-        is_heavy_compression: isHeavyCompression,
+        is_heavy_compression: isElevatedCompression,
         quality_passed: qualityPassed,
+        has_quality_advisory: hasQualityAdvisory,
         reject_code: rejectCode,
-        warnings: warnings
+        warnings: advisoryWarnings
     };
 }
 
@@ -1031,7 +1042,12 @@ async function runClientSideInference(file, imageElement, iqaResult) {
     let safetyInterlock = true;
     let warningMsg = null;
 
-    // Strict Decision Rules with OOD Safety Interlock
+    const hasQualityAdvisory = Boolean(iqaResult && iqaResult.has_quality_advisory);
+    const iqaAdvisoryWarning = (iqaResult && iqaResult.warnings && iqaResult.warnings.length > 0)
+        ? iqaResult.warnings[0]
+        : null;
+
+    // Strict Decision Rules with OOD Safety Interlock & Pre-Analytic Quality Deferral
     if (isOod) {
         triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
         safetyInterlock = true;
@@ -1040,10 +1056,20 @@ async function runClientSideInference(file, imageElement, iqaResult) {
         triageAction = 'AUTO_FLAG_TB_URGENT';
         safetyInterlock = false;
         warningMsg = 'High Risk Pulmonary TB suspected (Calibrated P(TB)=' + (probTb * 100).toFixed(1) + '% exceeds high-risk threshold 65.0%). Immediate microbiological sputum GeneXpert test and urgent clinician evaluation indicated.';
-    } else if (conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
+        if (hasQualityAdvisory && iqaAdvisoryWarning) {
+            warningMsg += ' [' + iqaAdvisoryWarning + ']';
+        }
+    } else if (!hasQualityAdvisory && conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
         triageAction = 'ASSISTIVE_NORMAL_DOCTOR_VERIFY';
         safetyInterlock = true;
         warningMsg = 'Assistive normal verification: No focal pulmonary consolidation or cavitary infiltrate detected. Physician confirmation required.';
+    } else if (hasQualityAdvisory && conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
+        // SOTA Clinical Safety Interlock: Revoke autonomous normal clearance on non-optimal image quality; defer to doctor
+        triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
+        safetyInterlock = true;
+        warningMsg = (currentLang === 'id')
+            ? 'Peringatan Kualitas Citra: Ditemukan variasi teknis (' + (iqaAdvisoryWarning || 'kualitas foto non-optimal') + '). Pelepasan otomatis dicabut demi keselamatan klinis; wajib verifikasi langsung oleh dokter.'
+            : 'Image Quality Advisory: Non-optimal image condition detected (' + (iqaAdvisoryWarning || 'compression/contrast deviation') + '). Autonomous clearance revoked for patient safety; clinician review mandatory.';
     } else {
         triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
         safetyInterlock = true;
@@ -1055,6 +1081,9 @@ async function runClientSideInference(file, imageElement, iqaResult) {
             warningMsg = 'Conformal ambiguity (multi-label set {Normal, Tuberculosis}): Radiograph exhibits mixed or subtle thoracic features. Autonomous release prohibited. Physician evaluation mandatory.';
         } else {
             warningMsg = 'Intermediate suspicion: Posterior P(TB)=' + (probTb * 100).toFixed(1) + '%. Clinical referral mandatory before initiating treatment or discharge.';
+        }
+        if (hasQualityAdvisory && iqaAdvisoryWarning) {
+            warningMsg += ' [' + iqaAdvisoryWarning + ']';
         }
     }
 
