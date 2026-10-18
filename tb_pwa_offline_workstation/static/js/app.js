@@ -3,8 +3,11 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=3.0.0').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
+            if (reg.update) {
+                reg.update();
+            }
         }).catch((err) => {
             console.warn('[PWA ServiceWorker] Registration failed:', err);
         });

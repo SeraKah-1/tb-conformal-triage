@@ -1,6 +1,6 @@
 // TB Conformal Triage Clinical Workstation - Offline Service Worker
 // Enforces 100% Air-Gapped Operation via Cache-First Strategy
-const CACHE_NAME = 'tb-conformal-offline-v2.2';
+const CACHE_NAME = 'tb-conformal-offline-v3.0.0';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -82,14 +82,31 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pure local cache-first strategy
+  const url = new URL(event.request.url);
+  const isCodeAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.html') || event.request.mode === 'navigate';
+
+  if (isCodeAsset) {
+    // Network-First with Cache Fallback for code assets to guarantee instant update propagation
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 206)) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-First with Network Fallback for heavy binary assets (ONNX model, WASM, fonts)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || (networkResponse.status !== 200 && networkResponse.status !== 206) || (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')) {
+        if (!networkResponse || (networkResponse.status !== 200 && networkResponse.status !== 206)) {
           return networkResponse;
         }
         const responseToCache = networkResponse.clone();
@@ -97,11 +114,6 @@ self.addEventListener('fetch', (event) => {
           cache.put(event.request, responseToCache);
         });
         return networkResponse;
-      }).catch(() => {
-        // Fallback for document navigation
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
       });
     })
   );
