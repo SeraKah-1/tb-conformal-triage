@@ -634,7 +634,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     // Modality / Anatomy Guard (True non-radiograph blank document / empty sensor)
     const whiteRatio = countWhite / totalPixels;
     const blackRatio = countBlack / totalPixels;
-    const isInvalidAnatomyDoc = (whiteRatio > 0.85) || (blackRatio > 0.90);
+    const isInvalidAnatomyDoc = (whiteRatio > 0.90) || (blackRatio > 0.96) || (blackRatio > 0.88 && dynamicRange < 25.0);
 
     // Photometric Polarity Check: 4 corners (8% margin, min 4 px) vs center zone (x: 40-60%, y: 35-65%)
     const cH = Math.max(4, Math.floor(0.08 * h));
