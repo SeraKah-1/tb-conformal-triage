@@ -878,9 +878,9 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
         return null;
     }
 
-    // If patient is Normal or TB probability is under 50% (Normal favored), suppress heatmap.
-    // Clinically, normal or equivocal radiographs must not display false positive lesion hotspots on cortical bone.
-    if (probTb !== undefined && probTb < 0.50) {
+    // Clinically suppress heatmap only if TB probability is under 15% (clean normal).
+    // For presumptive or subtle lesions (P(TB) >= 15%), generate CAM heatmap so clinicians can inspect focal activations.
+    if (probTb !== undefined && probTb < 0.15) {
         return null;
     }
 
@@ -1047,47 +1047,53 @@ async function runClientSideInference(file, imageElement, iqaResult) {
         ? iqaResult.warnings[0]
         : null;
 
-    // Strict Decision Rules with OOD Safety Interlock & Pre-Analytic Quality Deferral
-    if (isOod) {
-        triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
-        safetyInterlock = true;
-        warningMsg = oodReport.warning;
-    } else if (conformalSet.includes('Tuberculosis') && probTb >= 0.65 && probTb > probNormal) {
+    // 4-Tier SOTA Clinical AI Decision Engine
+    // Primary binary threshold: 0.4401 (WHO CAD TPP calibrated cutoff)
+    const isTier1Normal = (probTb < 0.20 && probNormal >= 0.80 && conformalSet.length === 1 && conformalSet[0] === 'Normal');
+
+    if (probTb >= 0.65) {
+        // Tier 4: High Risk Active TB (Cito GeneXpert)
         triageAction = 'AUTO_FLAG_TB_URGENT';
         safetyInterlock = false;
-        warningMsg = 'High Risk Pulmonary TB suspected (Calibrated P(TB)=' + (probTb * 100).toFixed(1) + '% exceeds high-risk threshold 65.0%). Immediate microbiological sputum GeneXpert test and urgent clinician evaluation indicated.';
-        if (hasQualityAdvisory && iqaAdvisoryWarning) {
-            warningMsg += ' [' + iqaAdvisoryWarning + ']';
-        }
-    } else if (!hasQualityAdvisory && conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
-        triageAction = 'ASSISTIVE_NORMAL_DOCTOR_VERIFY';
-        safetyInterlock = true;
-        warningMsg = 'Assistive normal verification: No focal pulmonary consolidation or cavitary infiltrate detected. Physician confirmation required.';
-    } else if (hasQualityAdvisory && conformalSet.length === 1 && conformalSet[0] === 'Normal' && probTb < 0.20 && probNormal >= 0.80) {
-        // SOTA Clinical Safety Interlock: Revoke autonomous normal clearance on non-optimal image quality; defer to doctor
-        triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
+        warningMsg = (currentLang === 'id')
+            ? 'PERINGATAN: Dicurigai Kuat TB Paru Aktif (Probabilitas P(TB)=' + (probTb * 100).toFixed(1) + '%). TINDAKAN SEGERA: Kumpulkan dahak untuk tes TCM (GeneXpert) dan isolasi kontak erat.'
+            : 'WARNING: High Risk Pulmonary TB suspected (Calibrated P(TB)=' + (probTb * 100).toFixed(1) + '%). IMMEDIATE ACTION: Order sputum TCM GeneXpert test and urgent clinician evaluation.';
+    } else if (probTb >= 0.4401) {
+        // Tier 3: Presumptive TB / Moderate Suspicion (Prioritas Dokter)
+        triageAction = 'PRESUMPTIVE_TB_DOCTOR_EVAL';
         safetyInterlock = true;
         warningMsg = (currentLang === 'id')
-            ? 'Peringatan Kualitas Citra: Ditemukan variasi teknis (' + (iqaAdvisoryWarning || 'kualitas foto non-optimal') + '). Pelepasan otomatis dicabut demi keselamatan klinis; wajib verifikasi langsung oleh dokter.'
-            : 'Image Quality Advisory: Non-optimal image condition detected (' + (iqaAdvisoryWarning || 'compression/contrast deviation') + '). Autonomous clearance revoked for patient safety; clinician review mandatory.';
+            ? 'PERHATIAN: Presumtif TB Paru (Probabilitas P(TB)=' + (probTb * 100).toFixed(1) + '%). Ditemukan kecurigaan lesi paru aktif. TINDAKAN MEDIS: Prioritaskan pemeriksaan dahak TCM dan telaah dokter.'
+            : 'PRESUMPTIVE TB: Moderate clinical suspicion (P(TB)=' + (probTb * 100).toFixed(1) + '%). Focal pulmonary markings detected. CLINICAL ACTION: Priority clinician review and sputum testing indicated.';
+    } else if (isTier1Normal && !hasQualityAdvisory && !isOod) {
+        // Tier 1: Definite Normal (Klirens Mandiri)
+        triageAction = 'AUTO_RELEASE_NORMAL';
+        safetyInterlock = false;
+        warningMsg = (currentLang === 'id')
+            ? 'Hasil: Paru Bersih Terverifikasi (P(Normal)=' + (probNormal * 100).toFixed(1) + '%). Tidak tampak tanda lesi atau kavitas aktif. Klirens skrining mandiri aman.'
+            : 'Clear Lungs Verified (P(Normal)=' + (probNormal * 100).toFixed(1) + '%). No active infiltrates or cavitary lesions. Safe for autonomous routine clearance.';
     } else {
-        triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
+        // Tier 2: Probable Normal / Low Risk (Corakan Normal / Evaluasi Rutin)
+        triageAction = 'PROBABLE_NORMAL_MONITOR';
         safetyInterlock = true;
-        if (Math.abs(probTb - probNormal) < 0.15 || (probTb >= 0.40 && probTb <= 0.60)) {
-            warningMsg = 'Equivocal / Borderline Triage: Posterior probability (P(TB)=' + (probTb * 100).toFixed(1) + '%, P(Normal)=' + (probNormal * 100).toFixed(1) + '%) is split near the 50/50 decision boundary. Autonomous classification prohibited; expert physician radiologist evaluation mandatory.';
-        } else if (conformalSet.length === 0) {
-            warningMsg = 'Non-conformal sample (empty prediction set): Model uncertain under distribution shift. Clinical referral mandatory.';
-        } else if (conformalSet.length > 1) {
-            warningMsg = 'Conformal ambiguity (multi-label set {Normal, Tuberculosis}): Radiograph exhibits mixed or subtle thoracic features. Autonomous release prohibited. Physician evaluation mandatory.';
-        } else {
-            warningMsg = 'Intermediate suspicion: Posterior P(TB)=' + (probTb * 100).toFixed(1) + '%. Clinical referral mandatory before initiating treatment or discharge.';
-        }
-        if (hasQualityAdvisory && iqaAdvisoryWarning) {
-            warningMsg += ' [' + iqaAdvisoryWarning + ']';
-        }
+        warningMsg = (currentLang === 'id')
+            ? 'Hasil: Corakan Paru Normal (P(Normal)=' + (probNormal * 100).toFixed(1) + '%, P(TB)=' + (probTb * 100).toFixed(1) + '%). Risiko TB rendah. Evaluasi gejala klinis rutin bila batuk berlanjut.'
+            : 'Probable Normal (P(Normal)=' + (probNormal * 100).toFixed(1) + '%, P(TB)=' + (probTb * 100).toFixed(1) + '%). Low TB risk. Routine clinical symptom evaluation advised if cough persists.';
     }
 
-    const heatDataUrl = (isOod || !camData) ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
+    // Append Informative Quality & OOD Advisories without blocking the decision
+    const advisories = [];
+    if (isOod) {
+        advisories.push(currentLang === 'id' ? 'Variasi detector rontgen' : 'Hardware detector variation');
+    }
+    if (hasQualityAdvisory && iqaAdvisoryWarning) {
+        advisories.push(iqaAdvisoryWarning);
+    }
+    if (advisories.length > 0) {
+        warningMsg += ' [' + advisories.join('; ') + ']';
+    }
+
+    const heatDataUrl = (!camData) ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
     const heatBase64 = heatDataUrl;
     const latMs = Math.round(performance.now() - t0);
 
@@ -1395,32 +1401,36 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         return;
     }
 
-    // Case 2: OOD Anomaly
-    if (isOod) {
-        banner.classList.add('action-ood');
-        if (badge) badge.innerText = t.actionOodBadge;
-        if (title) title.innerText = t.actionOodTitle;
-        if (desc) desc.innerText = t.actionOodDesc;
-        if (iconContainer) {
-            iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
-        }
-        return;
-    }
-
-    // Case 3: Standard In-Distribution Outcomes
-    if (action === 'AUTO_RELEASE_NORMAL' || action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
+    // Case 2: 4-Tier SOTA Clinical AI Decision Engine
+    if (action === 'AUTO_RELEASE_NORMAL') {
         banner.classList.add('action-normal');
         if (badge) badge.innerText = t.actionNormalBadge;
         if (title) title.innerText = t.actionNormalTitle;
-        if (desc) desc.innerText = t.actionNormalDesc;
+        if (desc) desc.innerText = warning || t.actionNormalDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+        }
+    } else if (action === 'PROBABLE_NORMAL_MONITOR' || action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
+        banner.classList.add('action-normal');
+        if (badge) badge.innerText = t.actionNormalProbBadge || t.actionNormalBadge;
+        if (title) title.innerText = t.actionNormalProbTitle || t.actionNormalTitle;
+        if (desc) desc.innerText = warning || t.actionNormalProbDesc || t.actionNormalDesc;
+        if (iconContainer) {
+            iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+        }
+    } else if (action === 'PRESUMPTIVE_TB_DOCTOR_EVAL') {
+        banner.classList.add('action-referral');
+        if (badge) badge.innerText = t.actionTbProbBadge || t.actionRefBadge;
+        if (title) title.innerText = t.actionTbProbTitle || t.actionRefTitle;
+        if (desc) desc.innerText = warning || t.actionTbProbDesc || t.actionRefDesc;
+        if (iconContainer) {
+            iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
         }
     } else if (action === 'AUTO_FLAG_TB_URGENT') {
         banner.classList.add('action-tb');
         if (badge) badge.innerText = t.actionTbBadge;
         if (title) title.innerText = t.actionTbTitle;
-        if (desc) desc.innerText = t.actionTbDesc;
+        if (desc) desc.innerText = warning || t.actionTbDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
         }
@@ -1428,7 +1438,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         banner.classList.add('action-referral');
         if (badge) badge.innerText = t.actionRefBadge;
         if (title) title.innerText = t.actionRefTitle;
-        if (desc) desc.innerText = t.actionRefDesc;
+        if (desc) desc.innerText = warning || t.actionRefDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
         }
@@ -1660,9 +1670,13 @@ async function startBatchProcessing() {
                     }
                     row.onclick = () => inspectBatchItem(currentIndex);
 
-                    if (data.triage_action === 'AUTO_RELEASE_NORMAL') normalCount++;
-                    else if (data.triage_action === 'AUTO_FLAG_TB_URGENT') tbCount++;
-                    else refCount++;
+                    if (data.triage_action === 'AUTO_RELEASE_NORMAL' || data.triage_action === 'PROBABLE_NORMAL_MONITOR' || data.triage_action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
+                        normalCount++;
+                    } else if (data.triage_action === 'AUTO_FLAG_TB_URGENT' || data.triage_action === 'PRESUMPTIVE_TB_DOCTOR_EVAL') {
+                        tbCount++;
+                    } else {
+                        refCount++;
+                    }
                 } else {
                     batchResults[currentIndex] = null;
                     const statusCell = document.getElementById(`status-${currentIndex}`);
