@@ -95,6 +95,7 @@ def main():
                 caseWorkspace.addFiles(['first.png','second.png'].map(name=>new File(['bad'],name,{type:'image/png'})));
                 window.processingPromise=caseWorkspace.process();
             }''')
+            page.wait_for_function('typeof finishInference === "function"')
             check('processing starts one case at a time',page.evaluate('mockCalls===1&&caseWorkspace.state.running'))
             page.evaluate('toggleLanguage()')
             check('language switch during processing preserves queue',page.evaluate('caseWorkspace.state.records.length===2&&caseWorkspace.state.running') and page.locator('#case-process').inner_text()=='Proses daftar')

@@ -87,3 +87,14 @@ Ekspor utama XLSX: header beku, filter kolom, lebar kolom, catatan multibaris, s
 Reset sesi meminta konfirmasi, diblokir saat proses/impor/penyimpanan aktif, membuang sesi dan perubahan belum disimpan, serta mempertahankan IndexedDB. Kasus tersimpan dibuka kembali lewat Tersimpan. Reset bukan Hapus arsip.
 
 Uji browser mencakup pemilih folder nyata 1.000 gambar kecil, 50 baris per halaman, pilihan seluruh halaman, XLSX dibaca kembali oleh openpyxl, formula/Unicode/baris baru, heatmap tersedia/tidak tersedia, pembatalan reset, arsip tetap tersimpan, dan kegagalan baca folder tanpa impor parsial. Tidak ada training atau inferensi berat lokal.
+
+
+## Loading v4.5
+
+Panel status ID/EN menampilkan fase nyata: baca folder/berkas, decode gambar, IQA, persiapan atau unduhan model, inferensi, dan pembuatan heatmap. Persentase unduhan berasal dari byte yang diterima; bukan persentase keseluruhan inferensi. Model dari cache diberi status persiapan, bukan unduhan jaringan. Antrean menampilkan nama gambar aktif, jumlah berhasil diproses, gagal, dibatalkan, dan dihapus dari antrean. Waktu berjalan diukur dari pekerjaan aktual, tanpa perkiraan selesai palsu.
+
+Pengecatan UI diberi kesempatan sebelum komputasi; fallback timer mencegah proses bergantung sepenuhnya pada animation frame di tab tersembunyi. Animasi menghormati reduced motion. Setelah fase berjalan 15 detik, keterangan menjelaskan proses masih berlangsung dan durasi bergantung pada perangkat. Loading tidak mempercepat komputasi atau menjamin kelancaran animasi saat WASM memakai main thread.
+
+Token pekerjaan mencegah callback lama menutup pekerjaan yang lebih baru. Reset sesi membersihkan status pekerjaan yang telah selesai; pembatalan menunggu gambar aktif lalu menghentikan antrean. Skor TB ditampilkan di setiap baris, dengan nilai presisi penuh di tooltip dan nilai numerik tetap tersedia pada Excel.
+
+Paket contoh 100 gambar berlabel healthy sengaja diambil dari bagian training proyek. Prediksi yang sama kelasnya tidak berarti nilai skornya sama. Kode menghitung skor dari logits per input dan tidak menetapkan hasil dari label/nama berkas. Pengujian dua input memakai decode nyata dan sesi ORT tiruan dengan logits berbeda untuk memeriksa pemetaan hasil serta loading; ini bukan pemeriksaan ulang akurasi 100 gambar oleh model asli. Tidak ada inferensi berat lokal atau perubahan model/ambang keputusan.

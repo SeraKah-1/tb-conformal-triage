@@ -162,6 +162,7 @@
         });
     }
     async function loadArchives() {
+        const archiveToken=window.workProgress?.start('archive',{phase:'archive'});
         loadingArchives=true;renderList();
         try {
             const saved=await storage('readonly',s=>s.getAll());
@@ -176,7 +177,7 @@
                 }
             }
         } catch(e) {announce('loadError');}
-        finally {loadingArchives=false;renderList();}
+        finally {window.workProgress?.finish('archive',{},archiveToken);loadingArchives=false;renderList();}
     }
     async function saveActive() {
         const r=records.get(activeId); if(!r || r.saving || r.state==='processing' || liveSingle(r)) return;
@@ -233,22 +234,26 @@
     async function executeRun(pending) {
         if(running || (typeof isSubmitting!=='undefined'&&isSubmitting) || (typeof isBatchRunning!=='undefined'&&isBatchRunning) || !pending.length)return;
         running=true;cancelled=false;run={id:++runSequence,total:pending.length,completed:0,failed:0,cancelled:0,skipped:0};renderList();
+        const progressToken=window.workProgress?.start('batch',{phase:'decode',total:pending.length,completed:0});
+        const updateProgress=extra=>window.workProgress?.update('batch',{completed:run.completed,failed:run.failed,cancelled:run.cancelled,skipped:run.skipped,...extra},progressToken);
         try {
             for(const r of pending) {
-                if(!records.has(r.id)){run.skipped++;continue;}
-                if(cancelled){r.state='cancelled';r.revision++;resetReview(r);run.cancelled++;renderList();continue;}
+                if(!records.has(r.id)){run.skipped++;updateProgress({});continue;}
+                if(cancelled){r.state='cancelled';r.revision++;resetReview(r);run.cancelled++;updateProgress({});renderList();continue;}
                 r.state='processing';r.revision++;resetReview(r);r.feedback=null;renderList();renderDetailTools();
                 if(activeId===r.id)await showResult(r);
+                updateProgress({filename:r.filename,phase:'decode',percent:null});
+                await window.workProgress?.paint();
                 let result=null;
                 try {
                     const file=r.image instanceof File?r.image:new File([r.image],r.filename,{type:r.image.type});
-                    result=await processBatchItem(file);
+                    result=await processBatchItem(file,stage=>updateProgress(stage));
                 } catch(e) { /* Failure remains explicit and can only be retried on request. */ }
-                if(!records.has(r.id)){run.skipped++;continue;}
+                if(!records.has(r.id)){run.skipped++;updateProgress({});continue;}
                 finishResult(r,result);if(r.state==='failed')run.failed++;else run.completed++;
-                renderList();if(activeId===r.id)await showResult(r);
+                updateProgress({});renderList();if(activeId===r.id)await showResult(r);
             }
-        } finally {running=false;renderList();renderDetailTools();}
+        } finally {window.workProgress?.finish('batch',{completed:run.completed,failed:run.failed,cancelled:run.cancelled,skipped:run.skipped,status:cancelled?'cancelled':run.failed?'attention':'done'},progressToken);running=false;renderList();renderDetailTools();}
     }
     async function process(scope='visible') {
         return executeRun(scopeRecords(scope==='selected'?'selected':'visible'));
@@ -380,6 +385,7 @@
         const counts=Array.from(records.values());
         const runText=run&&view==='queue'?` · ${t('progress')}: ${run.completed+run.failed}/${run.total} · ${t('failed')}: ${run.failed} · ${t('cancelled')}: ${run.cancelled}${run.skipped?' · '+t('skipped')+': '+run.skipped:''}`:'';
         if(progress)progress.textContent=`${t('count')}: ${rows.length}${selected.size?' · '+t('selected')+': '+selected.size:''}${runText}`;
+        for(const button of workspace.querySelectorAll('[data-action=add],[data-action=folder]'))button.disabled=importing;
         const blocked=running||importing||(typeof isSubmitting!=='undefined'&&isSubmitting);
         const processBtn=document.getElementById('case-process');if(processBtn){processBtn.disabled=blocked||!scopeRecords('visible').length;processBtn.hidden=selected.size>0;}
         const selectedBtn=document.getElementById('case-process-selected');if(selectedBtn){selectedBtn.disabled=blocked||!scopeRecords('selected').length;selectedBtn.hidden=!selected.size;}
@@ -393,14 +399,14 @@
         const exportButton=document.getElementById('case-export');if(exportButton)exportButton.disabled=!rows.length&&!selected.size;
         if(!rows.length) {list.append(make('h3','',t('empty')),make('p','case-hint',t('emptyHelp')));return;}
         for(const r of pageRows) {
-            const row=make('article',`case-row${activeId===r.id?' is-active':''}`);
+            const row=make('article',`case-row${activeId===r.id?' is-active':''}`);row.dataset.state=r.state;row.setAttribute('aria-busy',String(r.state==='processing'));
             const check=make('input');check.dataset.caseId=r.id;check.type='checkbox';check.checked=selected.has(r.id);check.setAttribute('aria-label',`${t('selected')}: ${r.filename}`);
             check.addEventListener('change',()=> {if(check.checked)selected.add(r.id);else selected.delete(r.id);renderList();Array.from(list.querySelectorAll('input[type=checkbox]')).find(el=>el.dataset.caseId===r.id)?.focus();});
             const body=make('div','case-row-content');
             const title=button('open',()=>openCase(r.id),'case-open');title.textContent=r.filename;title.dataset.caseId=r.id;
             const meta=make('p','case-meta',`${new Date(r.createdAt).toLocaleString(language==='en'?'en-GB':'id-ID')} · ${t(r.state)} · ${t(r.reviewed?'reviewed':'unreviewed')}`);
             const summary=make('p','case-result',`${r.flagged?'★ ':''}${t(outcome(r))}${r.saved ? ` · ${t('saved')}`:''}${r.saved&&dirty(r)?` · ${t('changed')}`:''}`);
-            body.append(title,meta,summary);
+            body.append(title,meta,summary);if(hasPrediction(r)){const score=make('p','case-score',`${t('score')}: ${r.result.probability_tb>0&&r.result.probability_tb<.0001?'<0.01':(r.result.probability_tb*100).toFixed(2)}%`);score.title='P(TB) = '+r.result.probability_tb;body.append(score);}
             const issueKeys=['iqaWarning','oodOutside','oodUnavailable','conformalAmbiguous','conformalEmpty'].filter(key=>matchesFilter(r,key));
             if(issueKeys.length) body.append(make('p','case-row-issues',issueKeys.map(t).join(' · ')));
             const tone=outcome(r)==='high'||r.state==='failed'?'danger':outcome(r)==='low'?'info':r.result?'warning':'neutral';
@@ -424,20 +430,30 @@
         if(running||importing||loadingArchives||Array.from(records.values()).some(r=>r.saving)||(typeof isSubmitting!=='undefined'&&isSubmitting))return;
         if(!window.confirm(t('resetConfirm')))return;
         for(const r of records.values()) {deletedImages.add(r.image);if(typeof invalidateSingleRequest==='function')invalidateSingleRequest(r.image);}
-        closeDetail(false);records.clear();selected.clear();singleRecordId=null;singleFile=null;singlePreview=null;run=null;query='';filter='all';sort='defaultSort';pageIndex=0;
+        window.workProgress?.clear();closeDetail(false);records.clear();selected.clear();singleRecordId=null;singleFile=null;singlePreview=null;run=null;query='';filter='all';sort='defaultSort';pageIndex=0;
         if(typeof resetSingleTriage==='function')resetSingleTriage();resetResultDisplay();build();announce('resetDone');
     }
+    async function importFiles(files) {
+        if(importing)return;
+        const incoming=Array.from(files);if(!incoming.length)return;
+        importing=true;renderList();
+        const token=window.workProgress?.start('import',{phase:'files',total:incoming.length,completed:0});
+        try {await window.workProgress?.paint();const before=records.size;addFiles(incoming);const added=records.size-before;window.workProgress?.finish('import',{completed:added,failed:incoming.length-added,status:added===incoming.length?'done':'attention'},token);}
+        catch(error){window.workProgress?.finish('import',{status:'failed'},token);announce('folderError');}
+        finally {importing=false;renderList();}
+    }
     async function dropFiles(event) {
-        event.preventDefault();if(importing)return;
+        event.preventDefault();if(view!=='queue'||importing)return;
         const items=Array.from(event.dataTransfer.items||[]),entries=items.map(x=>x.webkitGetAsEntry?.()).filter(Boolean);
-        if(!entries.some(e=>e.isDirectory)){addFiles(event.dataTransfer.files);return;}
+        if(!entries.some(e=>e.isDirectory)){await importFiles(event.dataTransfer.files);return;}
         importing=true;announce('readingFolder');renderList();
+        const token=window.workProgress?.start('import',{phase:'folder',found:0});
         const files=[];
         async function walk(entry,path='') {
-            if(entry.isFile) {const file=await new Promise((resolve,reject)=>entry.file(resolve,reject));Object.defineProperty(file,'_batchPath',{value:path+file.name});files.push(file);}
+            if(entry.isFile) {const file=await new Promise((resolve,reject)=>entry.file(resolve,reject));Object.defineProperty(file,'_batchPath',{value:path+file.name});files.push(file);if(files.length%25===0)window.workProgress?.update('import',{found:files.length},token);}
             else if(entry.isDirectory) {const reader=entry.createReader();for(;;){const batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));if(!batch.length)break;for(const child of batch)await walk(child,path+entry.name+'/');}}
         }
-        try {for(const entry of entries)await walk(entry);addFiles(files);}catch(error){announce('folderError');}finally{importing=false;renderList();}
+        try {for(const entry of entries)await walk(entry);await window.workProgress?.paint();addFiles(files);window.workProgress?.finish('import',{found:files.length},token);}catch(error){window.workProgress?.finish('import',{status:'failed'},token);announce('folderError');}finally{importing=false;renderList();}
     }
     function renderNav() {
         for(const el of document.querySelectorAll('[data-case-view]')) {el.classList.toggle('active',el.dataset.caseView===view);el.setAttribute('aria-current',el.dataset.caseView===view?'page':'false');}
@@ -521,13 +537,13 @@
         const toolbar=make('div','case-toolbar');
         const extra=make('details','case-more'),extraActions=make('div','case-actions');extra.append(make('summary','',t('more')),extraActions);
         if(view!=='saved') {
-            const upload=make('input');upload.type='file';upload.multiple=true;upload.accept='.png,.jpg,.jpeg,.webp';upload.hidden=true;upload.id='case-files';upload.addEventListener('change',()=> {addFiles(upload.files);upload.value='';});
-            const folder=make('input');folder.type='file';folder.multiple=true;folder.setAttribute('webkitdirectory','');folder.hidden=true;folder.id='case-folder';folder.addEventListener('change',()=>{addFiles(folder.files);folder.value='';});
+            const upload=make('input');upload.type='file';upload.multiple=true;upload.accept='.png,.jpg,.jpeg,.webp';upload.hidden=true;upload.id='case-files';upload.addEventListener('change',()=> {importFiles(upload.files);upload.value='';});
+            const folder=make('input');folder.type='file';folder.multiple=true;folder.setAttribute('webkitdirectory','');folder.hidden=true;folder.id='case-folder';folder.addEventListener('change',()=>{importFiles(folder.files);folder.value='';});
             toolbar.append(upload,folder,button('add',()=>upload.click()),button('folder',()=>folder.click()));
             const go=button('processShown',()=>process('visible'));go.id='case-process';
             const chosen=button('processSelected',()=>process('selected'),'case-primary');chosen.id='case-process-selected';
             const again=button('retry',()=>retry('visible'));again.id='case-retry';
-            const cancel=button('cancel',()=> {cancelled=true;renderList();});cancel.id='case-cancel';cancel.title=t('cancelHelp');go.classList.add('case-primary');toolbar.append(go,chosen,cancel);extraActions.append(again);
+            const cancel=button('cancel',()=> {cancelled=true;window.workProgress?.update('batch',{cancelling:true});renderList();});cancel.id='case-cancel';cancel.title=t('cancelHelp');go.classList.add('case-primary');toolbar.append(go,chosen,cancel);extraActions.append(again);
         }
         const clear=button('clearSelection',()=>{selected.clear();renderList();});clear.id='case-clear-selection';
         const del=button('remove',()=>removeCases([...selected]));del.id='case-delete';const exportButton=button('export',exportCases);exportButton.id='case-export';exportButton.title=t('exportHelp');toolbar.append(exportButton);extraActions.append(button('csv',()=>exportCases('csv')),del,clear);

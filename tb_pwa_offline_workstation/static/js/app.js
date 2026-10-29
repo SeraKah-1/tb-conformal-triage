@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.4.0-batch').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.5.0-progress').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,8 +266,8 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.4.0-batch');
-            const required = ['./index.html','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
+            const cache = await caches.open('tb-conformal-offline-v4.5.0-progress');
+            const required = ['./index.html','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
                 './models/tb_conformal_distilled_v11_cam.onnx'];
@@ -495,7 +495,7 @@ async function fetchModelBufferWithFallback(onProgress) {
         try {
         await verifyModelBuffer(cached);
         console.log('[Model Loader] Loaded model from local IndexedDB cache (' + (cached.byteLength / (1024 * 1024)).toFixed(1) + ' MB). 0ms network latency.');
-        if (onProgress) onProgress(100, cached.byteLength, cached.byteLength);
+        if (onProgress) onProgress(100, cached.byteLength, cached.byteLength,'cache');
         return cached;
         } catch (err) { console.warn('[Model Loader] Ignoring invalid cached model:', err.message); }
     }
@@ -571,7 +571,7 @@ async function fetchModelBufferWithFallback(onProgress) {
     throw new Error('Semua sumber model gagal diunduh: ' + (lastError ? lastError.message : 'Network error'));
 }
 
-async function getOrtSession(progressCallback) {
+async function getOrtSession(progressCallback, phaseCallback) {
     if (ortSession) return ortSession;
     if (isModelLoading) {
         while (isModelLoading) {
@@ -599,6 +599,7 @@ async function getOrtSession(progressCallback) {
         }
 
         const modelBuffer = await fetchModelBufferWithFallback(progressCallback);
+        if(phaseCallback)phaseCallback('initializing');
         const uint8Data = new Uint8Array(modelBuffer);
 
         ortSession = await ort.InferenceSession.create(uint8Data, {
@@ -1030,8 +1031,10 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
     return outCanvas.toDataURL('image/png');
 }
 
-async function runClientSideInference(file, imageElement, iqaResult) {
-    const session = await getOrtSession();
+async function runClientSideInference(file, imageElement, iqaResult, onProgress) {
+    if(onProgress)onProgress({phase:'model'});
+    const session = await getOrtSession((percent,received,total,source)=>onProgress?.({phase:source==='cache'?'model':'download',percent,received,totalBytes:total}),phase=>onProgress?.({phase}));
+    if(onProgress){onProgress({phase:'inference'});await window.workProgress?.paint();}
     const t0 = performance.now();
     const isInverted = iqaResult ? iqaResult.is_inverted : false;
     const tensor = preprocessImageForONNX(imageElement, isInverted);
@@ -1146,6 +1149,7 @@ async function runClientSideInference(file, imageElement, iqaResult) {
     }
     if (iqaAdvisoryWarning) warningMsg += ' ' + iqaAdvisoryWarning;
 
+    if(camData&&onProgress){onProgress({phase:'heatmap'});await window.workProgress?.paint();}
     const heatDataUrl = (!camData) ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
     const heatBase64 = heatDataUrl;
     const latMs = Math.round(performance.now() - t0);
@@ -1188,7 +1192,9 @@ async function submitSingleTriage() {
     currentResultData = null;
     const reviewTools = document.getElementById('case-detail-tools');
     if (reviewTools) reviewTools.hidden = true;
-    let requestSource = null;
+    let requestSource = null, feedbackStatus='done';
+    const progressToken=window.workProgress?.start('single',{phase:'decode',filename:file.name});
+    const report=stage=>{if(isCurrent())window.workProgress?.update('single',stage,progressToken);};
     setLoadingState(true);
     try {
         // Always read this request's own file, including while its preview is still loading.
@@ -1208,24 +1214,27 @@ async function submitSingleTriage() {
             if (tempImg.complete && tempImg.naturalWidth > 0) resolve();
         });
         if (!isCurrent()) return;
+        report({phase:'quality'});
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if (!iqaResult.quality_passed) {
-            renderRejectionResults(file.name, iqaResult, source);
+            feedbackStatus='attention';renderRejectionResults(file.name, iqaResult, source);
             window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH', (iqaResult.warnings || []).join('; '), iqaResult, 0));
             return;
         }
-        await getOrtSession();
+        report({phase:'model'});
+        await getOrtSession((percent,received,total,source)=>report({phase:source==='cache'?'model':'download',percent,received,totalBytes:total}),phase=>report({phase}));
         if (!isCurrent()) return;
-        const data = await runClientSideInference(file, tempImg, iqaResult);
+        const data = await runClientSideInference(file, tempImg, iqaResult,report);
         if (!isCurrent()) return;
         data.source_image = source;
         renderSingleResults(data);
         window.caseWorkspace?.captureSingle?.(file, data);
     } catch (err) {
         if (!isCurrent()) return;
-        renderRuntimeError(err.message || 'AI execution error', requestSource);
+        feedbackStatus='failed';renderRuntimeError(err.message || 'AI execution error', requestSource);
         window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, 'ERROR_RUNTIME', err.message || 'Processing failed', null, 0));
     } finally {
+        window.workProgress?.finish('single',{status:isCurrent()?feedbackStatus:'cancelled'},progressToken);
         isSubmitting = false;
         setLoadingState(false);
     }
@@ -1608,7 +1617,8 @@ function technicalBatchResult(file, action, warning, iqa, elapsed) {
     };
 }
 
-async function processBatchItem(file) {
+async function processBatchItem(file,onProgress) {
+    if(onProgress)onProgress({phase:'decode'});
     const start = performance.now();
     const imgUrl = URL.createObjectURL(file);
     const tempImg = new Image();
@@ -1621,12 +1631,13 @@ async function processBatchItem(file) {
             if (tempImg.complete && tempImg.naturalWidth > 0) resolve();
         });
         decoded = true;
+        if(onProgress)onProgress({phase:'quality'});
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if (!iqaResult.quality_passed) {
             return technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH',
                 (iqaResult.warnings || []).join('; '), iqaResult, performance.now() - start);
         }
-        return await runClientSideInference(file, tempImg, iqaResult);
+        return await runClientSideInference(file, tempImg, iqaResult,onProgress);
     } catch (err) {
         return technicalBatchResult(file, decoded ? 'ERROR_RUNTIME' : 'REJECT_CORRUPT_IMAGE',
             err.message || 'Processing failed; clinician review required.', null, performance.now() - start);
