@@ -63,7 +63,7 @@ def main():
             page.evaluate('toggleLanguage()')
             check('English applies',page.locator('#case-process').inner_text()=='Process shown' and page.locator('html').get_attribute('lang')=='en')
             check('language switch preserves notes',page.locator('#case-notes').input_value()=='=SUM(1,2)')
-            with page.expect_download() as info:page.evaluate('caseWorkspace.export()')
+            with page.expect_download() as info:page.evaluate("caseWorkspace.export('csv')")
             csv=Path(info.value.path()).read_text()
             check('CSV formula escaping',"'=SUM(1,2)" in csv and "'=formula.png" in csv)
             page.locator('#case-search').fill('broken')

@@ -72,3 +72,18 @@ Periksa menampilkan preview sebelum Proses dan tombol Baru. Panel Pengaturan men
 Pemulihan memvalidasi seluruh container, versi, metadata hasil, tipe/ukuran/gambar yang dapat didecode dan SHA256 gambar sebelum transaksi penambahan atomik. ID yang sudah ada dilewati tanpa overwrite; duplikasi ID di dalam berkas ditolak. Kesalahan/quota membatalkan seluruh transaksi. Batas64MiB/berkas,48MiBbytes gambar,16MiB/gambar,500kasus diberitahukan; pilih lebih sedikit kasus bila melebihi. Arsip tidak ditandatangani secara kriptografis dan bukan bukti kebenaran klinis. File/gambar nonvalid tidak dipulihkan. Tidak ada inferensi atau pengiriman gambar ke server selama Backup/Pulihkan.
 
 Pembaruan UI v4.3 diizinkan pengguna; bukti rilis dicatat terpisah dari hasil pengujian lokal. Keterbatasan memori/getAll/heatmap serta belum adanya antrean komputasi berbasis disk dengan resume tetap berlaku; fitur backup tidak mengubahnya menjadi sistem ribuan gambar yang sudah dibenchmark.
+
+
+## Batch v4.4
+
+Unggah mendukung banyak berkas, pemilih folder beserta subfolder, dan seret folder. Nama lokasi relatif disimpan agar nama berkas yang sama dapat dibedakan. Pemrosesan tetap satu per satu; menerima 1.000 berkas bukan bukti throughput atau batas memori inferensi 1.000 gambar.
+
+Baris hasil memiliki tombol Heatmap; Kembali tersedia pada daftar dan penampil. Heatmap memakai hasil tersimpan dan tidak menjalankan model lagi. Jika heatmap tidak tersedia, hanya gambar asli yang ditampilkan dan mode aktivasi dinonaktifkan.
+
+Satu aksi Proses utama mengikuti ada/tidaknya pilihan. Aksi sekunder ada di Lainnya; kelompok pemeriksaan tambahan dapat dibuka sesuai kebutuhan. Merah menandai skor tinggi atau kegagalan, kuning peringatan/ambiguitas, hijau pemeriksaan yang lolos atau status tersimpan, biru informasi. Warna selalu disertai teks dan tidak menetapkan urgensi klinis atau kelayakan pemulangan.
+
+Ekspor utama XLSX: header beku, filter kolom, lebar kolom, catatan multibaris, skor numerik dalam format persen. Teks yang diawali `=` tetap sel teks. CSV UTF-8 tetap tersedia di Lainnya. Ekspor memakai pilihan lintas halaman, atau daftar sesuai filter jika tidak ada pilihan. Sel melebihi batas 32.767 karakter menampilkan pesan agar memakai CSV; isi tidak dipotong diam-diam.
+
+Reset sesi meminta konfirmasi, diblokir saat proses/impor/penyimpanan aktif, membuang sesi dan perubahan belum disimpan, serta mempertahankan IndexedDB. Kasus tersimpan dibuka kembali lewat Tersimpan. Reset bukan Hapus arsip.
+
+Uji browser mencakup pemilih folder nyata 1.000 gambar kecil, 50 baris per halaman, pilihan seluruh halaman, XLSX dibaca kembali oleh openpyxl, formula/Unicode/baris baru, heatmap tersedia/tidak tersedia, pembatalan reset, arsip tetap tersimpan, dan kegagalan baca folder tanpa impor parsial. Tidak ada training atau inferensi berat lokal.

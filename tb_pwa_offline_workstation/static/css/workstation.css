@@ -1232,3 +1232,32 @@ body[data-workspace-view="guide"] #processing-workspace { display: none !importa
 #settings-model-hash { overflow-wrap: anywhere; }
 #settings-status { font-size: .85rem; line-height: 1.6; margin-top: 12px; }
 @media print { #btn-settings, #settings-dialog { display: none !important; } }
+
+/* Batch v4.4: one primary action, explicit result entry, semantic status tones. */
+.case-row { grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; }
+.case-row-actions { display:flex; gap:6px; }
+.case-row-actions .case-button { color:#1b567e; background:#edf5fb; border-color:#c3d9e9; }
+.case-more { position:relative; }
+.case-more > summary { list-style:none; cursor:pointer; padding:10px 14px; border:1px solid var(--border-color); border-radius:7px; font-size:.82rem; }
+.case-more > summary::after { content:' ▾'; }
+.case-more[open] > .case-actions { position:absolute; right:0; top:100%; min-width:210px; z-index:20; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:9px; padding:10px; box-shadow:0 8px 24px #152b421c; display:flex; flex-direction:column; align-items:stretch; }
+.case-bulk-help { padding:16px; border:1px dashed #9bb4c9; border-radius:8px; color:var(--text-muted); font-size:.84rem; line-height:1.5; margin-top:16px; }
+.case-danger { color:#a52b35; }
+.case-result[data-tone],.case-mechanism[data-tone] { border-radius:5px; padding:5px 8px; width:fit-content; }
+[data-tone="danger"].case-result,[data-tone="danger"].case-summary-button { background:#fff0f0; color:#a12232; border-color:#e5b6bd; }
+[data-tone="warning"].case-result,[data-tone="warning"].case-summary-button,[data-tone="warning"].case-mechanism { background:#fff7df; color:#775309; border-color:#e4ce91; }
+[data-tone="success"].case-mechanism { background:#eaf6ef; color:#236342; border-color:#bddcc9; }
+[data-tone="info"].case-result,[data-tone="info"].case-summary-button { background:#edf5fb; color:#235776; border-color:#c3d9e9; }
+.case-row[data-tone="danger"] { border-left:3px solid #bd3445; }
+.case-row[data-tone="warning"] { border-left:3px solid #d5a136; }
+#case-detail-tools .case-detail-header { position:sticky; top:0; z-index:5; padding-block:10px; background:var(--bg-surface); }
+@media(max-width:600px) { .case-row-actions { grid-column:2 / -1; } .case-row { grid-template-columns:20px minmax(0,1fr); } .case-toolbar { gap:7px; } .case-more[open]>.case-actions { right:0; } }
+@media print { .case-row-actions,.case-more,.case-bulk-help { display:none!important; } }
+.case-checks > summary { cursor:pointer; padding:10px 8px; font-size:.8rem; color:var(--text-muted); }
+.case-checks[open] { flex-basis:100%; }
+.case-checks .case-summary { margin-top:8px; }
+.case-button[data-action="markReviewed"] svg { color:#267145; }
+.case-button[data-action="remove"] svg,.case-button[data-action="resetSession"] svg { color:#ae2b3b; }
+.case-button[data-action="flag"] svg,.case-button[data-action="unflag"] svg { color:#966310; }
+.case-nav [data-case-view="saved"] svg { color:#267145; }
+.case-nav [data-case-view="guide"] svg { color:#8052a1; }

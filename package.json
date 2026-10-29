@@ -6,7 +6,7 @@
     "dev": "node tb_pwa_offline_workstation/server.js",
     "start": "node tb_pwa_offline_workstation/server.js",
     "test": "node --test tests/pwa_safety.test.js tests/server.integration.js tests/iqa_alignment.test.js",
-    "test:ui": "python tests/ui_single_browser.py && python tests/ui_workflow_browser.py && python tests/ui_scale_browser.py && python tests/ui_menu_regression.py && python tests/ui_archive_browser.py && python tests/ui_offline_browser.py"
+    "test:ui": "python tests/ui_single_browser.py && python tests/ui_workflow_browser.py && python tests/ui_scale_browser.py && python tests/ui_menu_regression.py && python tests/ui_archive_browser.py && python tests/ui_offline_browser.py && python tests/ui_batch_v44_browser.py"
   },
   "keywords": [
     "tuberculosis",

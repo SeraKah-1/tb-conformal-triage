@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.3.0-workflow').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.4.0-batch').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,8 +266,8 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.3.0-workflow');
-            const required = ['./index.html','./static/js/cases.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
+            const cache = await caches.open('tb-conformal-offline-v4.4.0-batch');
+            const required = ['./index.html','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
                 './models/tb_conformal_distilled_v11_cam.onnx'];
@@ -1320,6 +1320,10 @@ function renderSingleResults(data) {
     const imgHeat = document.getElementById('img-heat');
     if (imgBase && sourceImage) imgBase.src = sourceImage;
     const rawHeat = data.hirescam_heatmap_base64 || data.hirescam_overlay_url;
+    for(const id of ['btn-mode-heat','btn-mode-split']){const control=document.getElementById(id);if(control)control.disabled=!rawHeat;}
+    let heatNotice=document.getElementById('case-heatmap-notice');
+    if(!heatNotice){heatNotice=document.createElement('p');heatNotice.id='case-heatmap-notice';heatNotice.className='case-hint';document.querySelector('.viewer-card')?.append(heatNotice);}
+    heatNotice.hidden=Boolean(rawHeat);heatNotice.textContent=rawHeat?'':currentLang==='en'?'No heatmap was stored for this result. Only the original image is shown.':'Heatmap tidak tersimpan untuk hasil ini. Hanya gambar asli yang ditampilkan.';
     if (imgHeat) {
         if (rawHeat) {
             if (rawHeat.startsWith('data:') || rawHeat.startsWith('http:') || rawHeat.startsWith('https:') || rawHeat.startsWith('./') || rawHeat.startsWith('/')) {
@@ -1331,7 +1335,7 @@ function renderSingleResults(data) {
             if (sourceImage) imgHeat.src = sourceImage;
         }
     }
-    setSliderMode('split');
+    setSliderMode(rawHeat?'split':'orig');
 
     // 3. Probabilities
     const pTbPct = (data.probability_tb * 100).toFixed(2);

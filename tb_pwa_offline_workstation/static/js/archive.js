@@ -7,7 +7,7 @@
     const STATES = new Set(['pending','cancelled','complete','failed']);
     const LABELS = new Set(['Normal','Tuberculosis','TB']);
     const ACTIONS = new Set(['ASSISTIVE_NORMAL_DOCTOR_VERIFY','REFER_AMBIGUOUS_TO_DOCTOR','AUTO_FLAG_TB_URGENT','LEGACY_NORMAL_REQUIRES_REVIEW','PRESUMPTIVE_TB_DOCTOR_EVAL','ERROR_RUNTIME']);
-    const META_KEYS = ['schemaVersion','id','filename','modelVersion','createdAt','updatedAt','reviewed','flagged','notes','state','result','resultGeneration','reviewedGeneration','importedAt'];
+    const META_KEYS = ['schemaVersion','id','filename','sourcePath','modelVersion','createdAt','updatedAt','reviewed','flagged','notes','state','result','resultGeneration','reviewedGeneration','importedAt'];
     let busy = false;
     class ArchiveError extends Error { constructor(code) { super(code); this.name='ArchiveError'; this.code=code; } }
     const fail = code => { throw new ArchiveError(code); };
@@ -70,6 +70,7 @@
         for(const key of ['resultGeneration','reviewedGeneration'])if(record[key]!==undefined&&record[key]!==null&&(!Number.isSafeInteger(record[key])||record[key]<0))fail('archiveInvalid');
         if(record.reviewed&&record.resultGeneration!==undefined&&record.reviewedGeneration!==record.resultGeneration)fail('archiveInvalid');
         if(record.importedAt!==undefined&&(!finite(record.importedAt)||record.importedAt<0))fail('archiveInvalid');
+        if(record.sourcePath!==undefined && (typeof record.sourcePath!=='string'||record.sourcePath.length>4000))fail('archiveInvalid');
         validateResult(record.result,record.state,record.filename);
         const metadata={};for(const key of META_KEYS)if(record[key]!==undefined)metadata[key]=record[key];
         safeJson(metadata);return metadata;
