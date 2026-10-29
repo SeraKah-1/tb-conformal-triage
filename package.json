@@ -4,7 +4,9 @@
   "description": "Conformal Triage for Pulmonary Tuberculosis - Root Workspace",
   "scripts": {
     "dev": "node tb_pwa_offline_workstation/server.js",
-    "start": "node tb_pwa_offline_workstation/server.js"
+    "start": "node tb_pwa_offline_workstation/server.js",
+    "test": "node --test tests/pwa_safety.test.js tests/server.integration.js tests/iqa_alignment.test.js",
+    "test:ui": "python tests/ui_workflow_browser.py && python tests/ui_scale_browser.py && python tests/ui_offline_browser.py"
   },
   "keywords": [
     "tuberculosis",

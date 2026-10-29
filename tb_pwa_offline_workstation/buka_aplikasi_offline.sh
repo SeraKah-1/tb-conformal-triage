@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # TB Conformal Triage - Linux Offline Launcher
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")" || exit 1
 echo "====================================================================="
 echo "   TB CONFORMAL TRIAGE & CLINICAL SCREENING WORKSTATION (OFFLINE)    "
 echo "   Investigational SaMD Kelas B - BioMedCLIP Distilled Model v11     "
@@ -7,7 +8,8 @@ echo "====================================================================="
 echo ""
 echo "[1/2] Menyiapkan server lokal offline di komputer ini..."
 
-PORT=8080
+export PORT="${PORT:-8080}"
+export HOST="${HOST:-127.0.0.1}"
 SERVER_PID=""
 
 cleanup() {
@@ -23,16 +25,20 @@ if command -v node >/dev/null 2>&1 && [ -f "./server.js" ]; then
     SERVER_PID=$!
 elif command -v python3 >/dev/null 2>&1; then
     echo "Python3 terdeteksi. Menjalankan server lokal offline di port ${PORT}..."
-    python3 -m http.server $PORT >/dev/null 2>&1 &
+    python3 -m http.server "$PORT" --bind "$HOST" >/dev/null 2>&1 &
     SERVER_PID=$!
 elif command -v python >/dev/null 2>&1; then
     echo "Python terdeteksi. Menjalankan server lokal offline di port ${PORT}..."
-    python -m http.server $PORT >/dev/null 2>&1 &
+    python -m http.server "$PORT" --bind "$HOST" >/dev/null 2>&1 &
     SERVER_PID=$!
 fi
 
 if [ -n "$SERVER_PID" ]; then
     sleep 2
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+        echo "Server gagal dimulai. Periksa port dan pesan kesalahan di atas."
+        exit 1
+    fi
     echo "[2/2] Membuka workstation di browser default..."
     if command -v xdg-open >/dev/null 2>&1; then
         xdg-open "http://localhost:${PORT}/index.html"
@@ -45,11 +51,10 @@ if [ -n "$SERVER_PID" ]; then
     fi
     echo ""
     echo "Workstation berjalan offline. Tekan Ctrl+C untuk menghentikan server."
-    wait $SERVER_PID
+    wait "$SERVER_PID"
 else
     echo "PERINGATAN: Node.js atau Python3 tidak ditemukan di sistem ini."
     echo "Kebijakan keamanan peramban modern memblokir AI WebAssembly dan Service Worker melalui file:// langsung."
     echo "Mohon pasang Node.js atau Python3 untuk menjalankan workstation klinis ini."
-    echo "Mencoba membuka index.html langsung..."
-    xdg-open index.html 2>/dev/null || sensible-browser index.html 2>/dev/null
+    exit 1
 fi

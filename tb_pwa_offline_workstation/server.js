@@ -7,7 +7,7 @@ const path = require('path');
 const os = require('os');
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 const ROOT_DIR = __dirname;
 
 const MIME_TYPES = {
@@ -65,17 +65,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Parse path
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  let pathname = decodeURIComponent(parsedUrl.pathname);
-
-  if (pathname === '/') {
-    pathname = '/index.html';
+  // Decode only the request path, independent of the untrusted Host header.
+  // Reject traversal before normalization (which would otherwise hide '..').
+  let pathname;
+  try {
+    if (!req.url.startsWith('/') || req.url.startsWith('//')) throw new URIError('Invalid request target');
+    pathname = decodeURIComponent(req.url.split('?')[0]);
+    if (pathname.includes('\0')) throw new URIError('Invalid path');
+  } catch (_) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('400 Bad Request');
+    return;
   }
-
-  // Prevent directory traversal attacks
-  const safePath = path.normalize(pathname).replace(/^(\.\.[/\\])+/, '');
-  const filePath = path.join(ROOT_DIR, safePath);
+  const segments = pathname.replace(/\\/g, '/').split('/');
+  if (segments.includes('..')) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('403 Forbidden');
+    return;
+  }
+  if (pathname === '/') pathname = '/index.html';
+  const filePath = path.resolve(ROOT_DIR, '.' + pathname.replace(/\\/g, '/'));
+  if (!isWithinRoot(filePath)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('403 Forbidden');
+    return;
+  }
 
   // Check file exists
   fs.stat(filePath, (err, stats) => {
@@ -85,7 +99,7 @@ const server = http.createServer((req, res) => {
         res.end(`404 Not Found: ${pathname}`);
       } else {
         res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end(`500 Server Error: ${err.message}`);
+        res.end('500 Server Error');
       }
       return;
     }
@@ -103,11 +117,33 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    if (!stats.isFile()) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('403 Forbidden');
+      return;
+    }
     serveFile(filePath, stats, req, res);
   });
 });
 
+function isWithinRoot(filePath) {
+  const relative = path.relative(ROOT_DIR, filePath);
+  return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
+}
+
 function serveFile(filePath, stats, req, res) {
+  // Lexical containment alone does not protect against symlinks outside root.
+  fs.realpath(filePath, (err, realPath) => {
+    if (err || !isWithinRoot(realPath)) {
+      res.writeHead(err ? 404 : 403, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end(err ? '404 Not Found' : '403 Forbidden');
+      return;
+    }
+    streamFile(realPath, stats, req, res);
+  });
+}
+
+function streamFile(filePath, stats, req, res) {
   const ext = path.extname(filePath).toLowerCase();
   let contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
@@ -137,7 +173,9 @@ function serveFile(filePath, stats, req, res) {
   stream.on('error', (streamErr) => {
     if (!res.headersSent) {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end(`500 Stream Error: ${streamErr.message}`);
+      res.end('500 Stream Error');
+    } else {
+      res.destroy(streamErr);
     }
   });
   res.writeHead(200);
@@ -145,15 +183,17 @@ function serveFile(filePath, stats, req, res) {
 }
 
 server.listen(PORT, HOST, () => {
-  const ips = getLocalIpAddresses();
+  const ips = HOST === '0.0.0.0' || HOST === '::' ? getLocalIpAddresses() : [];
+  const boundPort = server.address().port;
   console.log('================================================================');
   console.log('  TB CONFORMAL TRIAGE CLINICAL WORKSTATION - DEV SERVER READY   ');
   console.log('================================================================');
-  console.log(`- Local Access     : http://localhost:${PORT}/index.html`);
-  console.log(`- Local Loopback   : http://127.0.0.1:${PORT}/index.html`);
+  console.log(`- Local Access     : http://localhost:${boundPort}/index.html`);
+  console.log(`- Local Loopback   : http://127.0.0.1:${boundPort}/index.html`);
   for (const ip of ips) {
-    console.log(`- Network Access   : http://${ip}:${PORT}/index.html`);
+    console.log(`- Network Access   : http://${ip}:${boundPort}/index.html`);
   }
+  console.log(`- Bind Address     : ${HOST}`);
   console.log(`- Serving Root     : ${ROOT_DIR}`);
   console.log('================================================================');
   console.log('Press Ctrl+C to terminate the development server.');

@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skrining Rontgen Dada Tuberkulosis (TB-CXR) - 100% Offline</title>
+    <title>TB Review</title>
+    <script>
+        function scheduleMathRender() {
+            const render = function() {
+                if (document.body && typeof renderMathInElement === 'function') renderMathInElement(document.body);
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render, { once: true });
+            else render();
+        }
+    </script>
     <!-- Local Vendor with CDN Fallback: KaTeX for medical mathematical formulas -->
     <link rel="stylesheet" href="./vendor/katex/katex.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';">
     <script src="./vendor/katex/katex.min.js" onerror="this.onerror=null;window.useCdnKatex=true;"></script>
@@ -12,10 +21,10 @@
             document.write('<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script>');
         }
     </script>
-    <script src="./vendor/katex/auto-render.min.js" onerror="this.onerror=null;window.useCdnAutoRender=true;" onload="if(typeof renderMathInElement==='function') renderMathInElement(document.body);"></script>
+    <script src="./vendor/katex/auto-render.min.js" onerror="this.onerror=null;window.useCdnAutoRender=true;" onload="scheduleMathRender();"></script>
     <script>
         if (typeof renderMathInElement === 'undefined') {
-            document.write('<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="if(typeof renderMathInElement===\'function\') renderMathInElement(document.body);"><\/script>');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="scheduleMathRender();"><\/script>');
         }
     </script>
     <!-- Local Vendor with CDN Fallback: ONNX Runtime Web for Client-Side WASM -->
@@ -28,15 +37,17 @@
     </script>
     <!-- PWA Manifest & Metadata -->
     <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
-    <meta name="theme-color" content="#0284C7">
+    <link rel="icon" type="image/svg+xml" href="./assets/brand.svg">
+    <meta name="theme-color" content="#faf9f6">
     <!-- Clean Modular CSS -->
-    <link rel="stylesheet" href="./static/css/workstation.css">
+    <link rel="stylesheet" href="./static/css/workstation.css?v=4.1.0-workflow">
 </head>
 <body>
+    <a class="skip-link" href="#case-workspace">Skip to content</a>
     <!-- Clinical Decision Support Notice & Disclaimer Modal -->
-    <div id="disclaimer-modal" class="modal-backdrop">
+    <div id="disclaimer-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="txt-modal-title">
         <div class="modal-box">
+            <button id="modal-language" class="btn-icon" type="button" onclick="toggleLanguage()" aria-label="Ganti bahasa">ID / EN</button>
             <div class="modal-header-row">
                 <div class="modal-icon">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -45,50 +56,46 @@
                         <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                 </div>
-                <h2 id="txt-modal-title" class="modal-title">Pemberitahuan Pendukung Keputusan Medis (Triase Awal Rontgen Dada)</h2>
+                <h2 id="txt-modal-title" class="modal-title">Penggunaan penelitian</h2>
             </div>
             <div class="modal-body">
-                <p id="txt-modal-desc-1"><strong>Pemberitahuan Klinis:</strong> Aplikasi ini adalah asisten pendukung keputusan klinis untuk membantu dokter dan perawat menyaring dugaan Tuberkulosis paru secara cepat pada foto rontgen dada di fasyankes primer.</p>
+                <p id="txt-modal-desc-1">Aplikasi penelitian untuk meninjau keluaran model pada rontgen dada. Hasil bukan diagnosis.</p>
                 <ul>
                     <li id="txt-modal-point-1"><strong>Konfirmasi Medis Wajib:</strong> Hasil sistem bertindak sebagai pemilah awal dan tidak pernah menggantikan pemeriksaan dokter serta uji laboratorium dahak (TCM GeneXpert / kultur).</li>
-                    <li id="txt-modal-point-2"><strong>Privasi Pasien 100% Terjamin:</strong> Seluruh foto rontgen diproses secara aman langsung di memori komputer Anda dan tidak pernah dikirim ke internet atau server pihak ketiga.</li>
+                    <li id="txt-modal-point-2">Gambar diproses di browser ini. Kasus hanya disimpan jika Anda memilih Simpan.</li>
                 </ul>
             </div>
             <div class="modal-agree-row">
                 <input type="checkbox" id="chk-disclaimer" onchange="toggleDisclaimerAccept()">
                 <label for="chk-disclaimer" id="txt-modal-agree">Saya mengonfirmasi bahwa saya adalah tenaga medis atau peneliti, dan memahami batasan klinis di atas.</label>
             </div>
-            <button id="btn-modal-accept" class="btn-modal-accept" disabled onclick="acceptDisclaimer()">Mulai Pemeriksaan Rontgen</button>
+            <button id="btn-modal-accept" class="btn-modal-accept" disabled onclick="acceptDisclaimer()">Lanjut</button>
         </div>
     </div>
 
     <div class="container">
-        <!-- Clinical Guideline Warning Bar -->
-        <div class="samd-regulatory-bar">
-            <span class="samd-regulatory-badge">PANDUAN MEDIS</span>
-            <span><strong>Peringatan Klinis Resmi (Kemenkes RI / WHO CAD):</strong> Sistem ini adalah alat bantu pemilah awal di faskes primer, bukan penentu diagnosis akhir. Seluruh temuan wajib diperiksa dokter dan dikonfirmasi dengan uji dahak TCM (GeneXpert).</span>
+        <div class="samd-regulatory-bar" role="note">
+            <span class="samd-regulatory-badge" data-case-i18n="research">Penelitian</span>
+            <span data-case-i18n="researchNotice">Hasil memerlukan tinjauan tenaga medis. Bukan diagnosis atau izin pulang.</span>
         </div>
 
         <!-- Top Navigation -->
         <header class="top-nav">
             <div class="brand-block">
                 <div class="brand-logo">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 3v12a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path>
-                        <path d="M4 7h16"></path>
-                    </svg>
+                    <img src="./assets/brand.svg" width="44" height="44" alt="TB Review">
                 </div>
                 <div>
-                    <h1 class="brand-title" id="txt-brand-title">Skrining Rontgen Dada Tuberkulosis (TB-CXR)</h1>
-                    <p class="brand-sub" id="txt-sub">Asisten Skrining Rontgen Dada Cepat &bull; 100% Offline Tanpa Internet &bull; Terkalibrasi Standar WHO</p>
+                    <h1 class="brand-title" id="txt-brand-title">TB Review</h1>
+                    <p class="brand-sub" id="txt-sub">Tinjauan rontgen dada</p>
                 </div>
             </div>
             <div class="nav-actions">
-                <span class="status-pill" style="background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.35); color: var(--color-normal);">
-                    <span class="status-dot" style="background: var(--color-normal);"></span>
-                    <span id="txt-status" style="font-weight: 700;">🟢 AKTIF OFFLINE (AMAN TANPA INTERNET)</span>
+                <span class="status-pill">
+                    <span class="status-dot"></span>
+                    <span id="txt-status" style="font-weight: 700;">Memeriksa kesiapan</span>
                 </span>
-                <button class="btn-icon" onclick="toggleLanguage()">
+                <button class="btn-icon" onclick="toggleLanguage()" aria-label="Bahasa / Language">
                     <span style="font-weight: 700;" id="txt-lang-badge">ID</span>
                 </button>
                 <button class="btn-icon" onclick="toggleTheme()">
@@ -100,46 +107,36 @@
             </div>
         </header>
 
-        <!-- Giant Hero Install Banner (One-Click Offline Installation) -->
-        <div id="pwa-install-banner" class="hero-install-container">
-            <button id="btn-hero-install" class="btn-hero-install" onclick="triggerPWAInstall()">
-                <div class="hero-install-icon-pulse">
-                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                </div>
-                <div class="hero-install-text-group">
-                    <div class="hero-install-title" id="txt-install-title">📥 PASANG APLIKASI SKRINING TB KE KOMPUTER INI (27 MB)</div>
-                    <div class="hero-install-subtitle" id="txt-install-sub">Klik Sekali Di Sini &bull; Otomatis Menjadi Ikon Desktop &bull; 100% Berjalan Permanen Tanpa Koneksi Internet</div>
-                </div>
-            </button>
-            <div class="install-steps-row">
-                <div class="step-card">
-                    <span class="step-num">1</span>
-                    <div class="step-text"><strong>Klik Tombol Besar di Atas</strong><br><span style="color: var(--text-muted);">Pilih "Install / Pasang" pada jendela konfirmasi browser</span></div>
-                </div>
-                <div class="step-card">
-                    <span class="step-num">2</span>
-                    <div class="step-text"><strong>Buka Ikon dari Desktop</strong><br><span style="color: var(--text-muted);">Ikon Skrining TB langsung siap di layar utama komputer</span></div>
-                </div>
-                <div class="step-card">
-                    <span class="step-num">3</span>
-                    <div class="step-text"><strong>Pilih / Seret Foto Rontgen</strong><br><span style="color: var(--text-muted);">Tarik foto rontgen dada ke layar, hasil skrining keluar seketika</span></div>
-                </div>
+        <div class="workspace-heading">
+            <nav class="case-nav" aria-label="Workspace">
+                <button type="button" data-case-view="queue" aria-current="page" data-case-i18n="queue">Antrean</button>
+                <button type="button" data-case-view="saved" data-case-i18n="saved">Tersimpan</button>
+                <button type="button" data-case-view="guide" data-case-i18n="guide">Panduan</button>
+            </nav>
+            <div id="pwa-install-banner" class="install-control">
+                <button id="btn-hero-install" class="btn-icon" onclick="triggerPWAInstall()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 3v12"/></svg>
+                    <span id="txt-install-title" data-case-i18n="install">Pasang</span>
+                </button>
             </div>
         </div>
 
+        <div class="review-workspace">
+        <main id="case-workspace" tabindex="-1" aria-label="Cases"></main>
+        <div class="case-inspection">
+        <section id="case-detail-tools" aria-label="Review"></section>
+
+        <details id="processing-workspace" class="processing-workspace">
+            <summary data-case-i18n="process">Proses</summary>
         <!-- Mode Navigation Tabs -->
         <div class="mode-tabs">
             <button id="tab-single" class="mode-tab-btn active" onclick="switchMode('single')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                <span id="txt-tab-single">Pemeriksaan Satu Pasien</span>
+                <span id="txt-tab-single">Satu gambar</span>
             </button>
             <button id="tab-batch" class="mode-tab-btn" onclick="switchMode('batch')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <span id="txt-tab-batch">Skrining Banyak Pasien Sekaligus</span>
+                <span id="txt-tab-batch">Banyak gambar</span>
             </button>
         </div>
 
@@ -149,7 +146,7 @@
             <div class="panel-card">
                 <h3 class="card-title">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    Pilih / Masukkan Foto Rontgen Dada
+                    <span data-i18n="uploadTitle">Tambah gambar</span>
                 </h3>
                 <p class="card-desc" id="txt-upload-desc">Mendukung file foto rontgen JPG atau PNG. Kecerahan dan kontras gambar disesuaikan secara otomatis.</p>
 
@@ -157,8 +154,8 @@
                     <div class="drop-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </div>
-                    <div class="upload-title" id="txt-upload-title">Pilih atau Tarik Foto Rontgen Dada ke Sini</div>
-                    <div class="upload-desc" id="txt-upload-sub">Bisa menggunakan file rontgen digital maupun foto langsung dari film rontgen.</div>
+                    <div class="upload-title" id="txt-upload-title">Tambah gambar</div>
+                    <div class="upload-desc" id="txt-upload-sub">PNG, JPG, atau WebP.</div>
                     <input type="file" id="file-input" style="display: none;" accept="image/png,image/jpeg,image/webp">
                 </div>
 
@@ -171,28 +168,28 @@
 
                 <button id="btn-submit" class="btn-primary" disabled onclick="submitSingleTriage()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                    <span id="txt-btn-submit">Periksa Foto Rontgen</span>
+                    <span id="txt-btn-submit">Proses</span>
                 </button>
 
                 <button class="btn-camera" onclick="captureCamera()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    <span id="txt-btn-camera">Ambil Foto via Kamera Ponsel</span>
+                    <span id="txt-btn-camera">Kamera</span>
                 </button>
 
                 <!-- Verified Benchmark Samples -->
                 <div class="samples-section">
-                    <div class="samples-title" id="txt-samples-title">Contoh Kasus Klinis Terverifikasi</div>
+                    <div class="samples-title" id="txt-samples-title">Contoh gambar</div>
                     <div class="samples-grid">
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_active_tb.png')">
-                            <span id="sample-1-name">Contoh 1: TB Aktif Jelas (Bercak Nyata)</span>
+                            <span id="sample-1-name">Contoh TB</span>
                             <span style="color: var(--color-referral); font-weight: 700;">TB Aktif</span>
                         </button>
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_normal_control.png')">
-                            <span id="sample-2-name">Contoh 2: Pasien Sehat (Paru Bersih Normal)</span>
+                            <span id="sample-2-name">Contoh non-TB</span>
                             <span style="color: var(--color-normal); font-weight: 700;">Normal</span>
                         </button>
                         <button class="sample-btn" onclick="loadBenchmarkCase('nitrd_apical_tb.png')">
-                            <span id="sample-3-name">Contoh 3: TB Bercak Halus (Puncak Paru)</span>
+                            <span id="sample-3-name">Contoh apikal</span>
                             <span style="color: var(--color-referral); font-weight: 700;">TB Apikal</span>
                         </button>
                     </div>
@@ -208,17 +205,17 @@
                         <line x1="12" y1="8" x2="12" y2="12"></line>
                         <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <h4 style="font-size: 1.1rem; font-weight: 700;" id="txt-empty-title">Siap Memeriksa Foto Rontgen</h4>
+                    <h4 style="font-size: 1.1rem; font-weight: 700;" id="txt-empty-title">Belum diproses</h4>
                     <p style="font-size: 0.85rem; margin-top: 6px; max-width: 420px; margin-left: auto; margin-right: auto;" id="txt-empty-desc">
-                        Unggah foto rontgen dada atau pilih salah satu contoh kasus di sebelah kiri untuk menjalankan pemeriksaan triase instan.
+                        Tambahkan gambar, lalu pilih Proses.
                     </p>
                 </div>
 
                 <!-- Loading State -->
                 <div id="loading-state" style="display: none; padding: 100px 24px; text-align: center;">
                     <div style="display: inline-block; width: 44px; height: 44px; border: 4px solid var(--border-color); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                    <p id="txt-loading-title" style="margin-top: 16px; font-weight: 600; font-size: 0.95rem;">Memeriksa Foto Rontgen Dada...</p>
-                    <p id="txt-loading-sub" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Sedang meneliti corakan paru dan mencari tanda bercak TB aktif...</p>
+                    <p id="txt-loading-title" style="margin-top: 16px; font-weight: 600; font-size: 0.95rem;">Memproses…</p>
+                    <p id="txt-loading-sub" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Tunggu hingga proses selesai.</p>
                 </div>
                 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
@@ -228,11 +225,11 @@
                     <div class="results-action-bar" style="display: flex; justify-content: flex-end; margin-bottom: 12px; gap: 8px;">
                         <button id="btn-batch-return" class="btn-reset-action" style="display: none;" onclick="returnToBatchMode()">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                            <span id="txt-btn-batch-return">Kembali ke Daftar Skrining Massal</span>
+                            <span id="txt-btn-batch-return">Kembali</span>
                         </button>
                         <button id="btn-single-reset" class="btn-reset-action" onclick="resetSingleTriage()">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                            <span id="txt-btn-single-reset">Pemeriksaan Pasien Baru</span>
+                            <span id="txt-btn-single-reset">Reset</span>
                         </button>
                     </div>
 
@@ -242,7 +239,7 @@
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         </div>
                         <div class="action-body">
-                            <span id="action-badge" class="action-badge">ARAHAN KLINIS TRIASE</span>
+                            <span id="action-badge" class="action-badge">HASIL MODEL</span>
                             <div id="action-title" class="action-title">ACTION_DIRECTIVE</div>
                             <div id="action-desc" class="action-desc">Deskripsi tindakan keselamatan klinis.</div>
                         </div>
@@ -252,13 +249,13 @@
                     <div class="viewer-card">
                         <div class="viewer-header">
                             <div class="viewer-title-row">
-                                <span class="viewer-title" id="txt-viewer-title">Peta Deteksi Lesi Paru</span>
-                                <span class="viewer-badge" id="txt-viewer-badge">Area Curiga TB</span>
+                                <span class="viewer-title" id="txt-viewer-title">Tampilan gambar</span>
+                                <span class="viewer-badge" id="txt-viewer-badge">Peta aktivasi</span>
                             </div>
                             <div class="mode-toggle-group">
                                 <button id="btn-mode-orig" class="btn-toggle" onclick="setSliderMode('orig')">Foto Asli</button>
-                                <button id="btn-mode-split" class="btn-toggle active" onclick="setSliderMode('split')">Bagi Dua (Geser)</button>
-                                <button id="btn-mode-heat" class="btn-toggle" onclick="setSliderMode('heat')">Sorot Bercak</button>
+                                <button id="btn-mode-split" class="btn-toggle active" onclick="setSliderMode('split')">Bandingkan</button>
+                                <button id="btn-mode-heat" class="btn-toggle" onclick="setSliderMode('heat')">Aktivasi</button>
                             </div>
                         </div>
 
@@ -276,7 +273,7 @@
 
                         <div class="slider-legend-row">
                             <span id="txt-legend-left">&larr; Foto Rontgen Asli (Anatomi)</span>
-                            <span id="txt-legend-right">Area Curiga TB (Warna) &rarr;</span>
+                            <span id="txt-legend-right">Peta aktivasi (Warna) &rarr;</span>
                         </div>
                     </div>
 
@@ -284,45 +281,45 @@
                     <div class="prob-section">
                         <div class="prob-card">
                             <div class="prob-header-row">
-                                <span class="prob-title" id="txt-prob-tb">Tingkat Risiko TB</span>
+                                <span class="prob-title" id="txt-prob-tb">Skor TB</span>
                                 <span id="val-prob-tb" class="prob-num" style="color: var(--color-tb);">0.00%</span>
                             </div>
                             <div class="prob-bar-track">
                                 <div id="bar-prob-tb" class="prob-bar-fill tb" style="width: 0%;"></div>
                             </div>
-                            <div class="prob-subtext" id="txt-prob-tb-sub">Batas anjuran tes dahak TCM: jika risiko di atas 44.0%</div>
+                            <div class="prob-subtext" id="txt-prob-tb-sub">Skor model; dokter menentukan pemeriksaan dan tindak lanjut.</div>
                         </div>
 
                         <div class="prob-card">
                             <div class="prob-header-row">
-                                <span class="prob-title" id="txt-prob-norm">Keyakinan Paru Bersih</span>
+                                <span class="prob-title" id="txt-prob-norm">Skor non-TB</span>
                                 <span id="val-prob-norm" class="prob-num" style="color: var(--color-normal);">0.00%</span>
                             </div>
                             <div class="prob-bar-track">
                                 <div id="bar-prob-norm" class="prob-bar-fill normal" style="width: 0%;"></div>
                             </div>
-                            <div class="prob-subtext" id="txt-prob-norm-sub">Standar acuan WHO paru sehat: keyakinan di atas 95.0%</div>
+                            <div class="prob-subtext" id="txt-prob-norm-sub">Skor model tidak memastikan paru sehat atau menyingkirkan TB.</div>
                         </div>
                     </div>
 
                     <!-- Progressive Disclosure: Collapsible Technical & Algorithmic Audit Details -->
                     <details class="tech-audit-details">
                         <summary class="tech-audit-summary">
-                            <span id="txt-tech-summary-title">Rincian Teknis &amp; Audit Regulasi AI (Untuk Dokter &amp; Auditor)</span>
+                            <span id="txt-tech-summary-title">Detail teknis</span>
                             <span class="tech-audit-icon">&plus;</span>
                         </summary>
                         <div class="meta-matrix" style="margin-top: 14px;">
                             <div class="meta-cell">
                                 <div class="meta-label" id="lbl-set">Himpunan Prediksi Konformal</div>
-                                <div id="met-set" class="meta-value">{Normal}</div>
+                                <div id="met-set" class="meta-value">N/A</div>
                             </div>
                             <div class="meta-cell">
                                 <div class="meta-label" id="lbl-action">Kode Keputusan Sistem</div>
-                                <div id="met-action" class="meta-value" style="font-size: 0.8rem;">AUTO_RELEASE_NORMAL</div>
+                                <div id="met-action" class="meta-value" style="font-size: 0.8rem;">NOT_ASSESSED</div>
                             </div>
                             <div class="meta-cell">
                                 <div class="meta-label" id="lbl-ood">Validitas Distribusi Citra</div>
-                                <div id="met-ood" class="meta-value" style="color: var(--color-normal); font-size: 0.8rem;">IN-DISTRIBUTION</div>
+                                <div id="met-ood" class="meta-value" style="color: var(--color-normal); font-size: 0.8rem;">NOT_ASSESSED</div>
                             </div>
                             <div class="meta-cell">
                                 <div class="meta-label" id="lbl-lat">Kecepatan Proses Lokal</div>
@@ -339,33 +336,33 @@
             <div class="panel-card" style="margin-bottom: 20px;">
                 <h3 class="card-title">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                    Skrining Banyak Foto Sekaligus (Massal)
+                    <span data-i18n="tabBatch">Banyak gambar</span>
                 </h3>
-                <p class="card-desc" id="txt-batch-drop-desc">Periksa puluhan foto rontgen dalam hitungan detik langsung di komputer ini tanpa internet. Hasil terangkum otomatis dan dapat diunduh ke tabel CSV/Excel.</p>
+                <p class="card-desc" id="txt-batch-drop-desc">Pilih beberapa gambar. Hasil tersedia setelah setiap gambar selesai diproses.</p>
 
                 <div id="batch-drop-zone" class="drop-zone" onclick="document.getElementById('batch-file-input').click()">
                     <div class="drop-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     </div>
-                    <div class="upload-title" id="txt-batch-drop-title">Tarik Kumpulan Foto Rontgen atau Folder ke Sini</div>
+                    <div class="upload-title" id="txt-batch-drop-title">Tambah gambar</div>
                     <div class="upload-desc" id="batch-queue-status">Belum ada foto rontgen dalam antrean.</div>
                     <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/png,image/jpeg,image/webp">
                 </div>
 
                 <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;">
                     <button id="btn-batch-start" class="btn-primary" style="margin-top: 0;" disabled onclick="startBatchProcessing()">
-                        <span id="txt-btn-batch-start">Mulai Skrining Massal</span>
+                        <span id="txt-btn-batch-start">Proses</span>
                     </button>
                     <button id="btn-batch-cancel" class="btn-reset-action" style="margin-top: 0; display: none; color: var(--color-tb); border-color: var(--color-tb);" onclick="cancelBatchProcessing()">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                        <span id="txt-btn-batch-cancel">Batalkan Skrining</span>
+                        <span id="txt-btn-batch-cancel">Batal</span>
                     </button>
                     <button id="btn-batch-csv" class="btn-primary" style="margin-top: 0; background: var(--color-normal);" disabled onclick="exportBatchCsv()">
-                        <span id="txt-btn-batch-csv">Ekspor Daftar Hasil (CSV)</span>
+                        <span id="txt-btn-batch-csv">Ekspor CSV</span>
                     </button>
                     <button id="btn-batch-reset" class="btn-reset-action" style="margin-top: 0;" onclick="resetBatchTriage()">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                        <span id="txt-btn-batch-reset">Reset / Kloter Baru</span>
+                        <span id="txt-btn-batch-reset">Reset</span>
                     </button>
                 </div>
 
@@ -379,19 +376,19 @@
             <!-- Batch KPIs -->
             <div class="batch-kpi-bar">
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-total">Total Foto Diperiksa</div>
+                    <div class="kpi-label" id="txt-kpi-total">Total gambar</div>
                     <div class="kpi-val" id="kpi-total-val">0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-normal">Paru Bersih (Aman)</div>
+                    <div class="kpi-label" id="txt-kpi-normal">Skor rendah</div>
                     <div class="kpi-val normal" id="kpi-normal-val">0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-tb">Curiga TB (Tes Dahak)</div>
+                    <div class="kpi-label" id="txt-kpi-tb">Skor tinggi</div>
                     <div class="kpi-val tb" id="kpi-tb-val">0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label" id="txt-kpi-ref">Perlu Dicek Dokter</div>
+                    <div class="kpi-label" id="txt-kpi-ref">Perlu review</div>
                     <div class="kpi-val ref" id="kpi-ref-val">0</div>
                 </div>
             </div>
@@ -402,10 +399,10 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Nama Berkas</th>
+                            <th>Berkas</th>
                             <th>Status</th>
-                            <th>Risiko TB (%)</th>
-                            <th>Tindakan Medis</th>
+                            <th>Skor TB (%)</th>
+                            <th>Hasil model</th>
                             <th>Waktu Proses</th>
                             <th id="batch-th-action">Aksi</th>
                         </tr>
@@ -419,43 +416,20 @@
             </div>
         </div>
 
-        <!-- Offline USB Flashdisk Footer Bar -->
-        <footer class="usb-bundle-footer">
-            <div>
-                <strong>Pilihan Tambahan untuk Komputer Faskes Tanpa Internet Sama Sekali:</strong><br>
-                <span style="color: var(--text-muted); font-size: 0.76rem;">Gunakan paket portabel USB flashdisk mandiri untuk komputer puskesmas terisolasi.</span>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <a href="./buka_aplikasi_offline.bat" download class="usb-bundle-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"></rect><polyline points="8 12 12 16 16 12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>
-                    Peluncur Windows (.BAT)
-                </a>
-                <a href="https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip" target="_blank" rel="noopener noreferrer" class="usb-bundle-btn" style="border-color: var(--accent-blue); color: var(--accent-blue);">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Unduh Arsip ZIP Mandiri (27.8 MB)
-                </a>
-            </div>
-        </footer>
+        </details>
+        </div>
+        </div>
+        <section id="case-guide" hidden aria-label="Guide"></section>
+        <footer class="workspace-footer"><span>TB Review</span><span data-case-i18n="research">Penelitian</span></footer>
     </div>
 
     <!-- Modular Scripts with Cache Busting -->
-    <script src="./static/js/i18n.js?v=3.0.0"></script>
-    <script src="./static/js/slider.js?v=3.0.0"></script>
-    <script src="./static/js/ood_calibration.js?v=3.0.0"></script>
-    <script src="./static/js/app.js?v=3.0.0"></script>
+    <script src="./static/js/i18n.js?v=4.1.0-workflow"></script>
+    <script src="./static/js/slider.js?v=4.1.0-workflow"></script>
+    <script src="./static/js/ood_calibration.js?v=4.1.0-workflow"></script>
+    <script src="./static/js/app.js?v=4.1.0-workflow"></script>
+    <script src="./static/js/cases.js?v=4.1.0-workflow"></script>
 
-    <!-- Automatic Legacy Cache Purge -->
-    <script>
-        if ('caches' in window) {
-            caches.keys().then(function(names) {
-                names.forEach(function(name) {
-                    if (name !== 'tb-conformal-offline-v3.0.0') {
-                        console.log('[PWA Cache Cleaner] Deleting legacy cache:', name);
-                        caches.delete(name);
-                    }
-                });
-            });
-        }
-    </script>
+    <!-- Legacy cache cleanup is scoped and owned by the service worker. -->
 </body>
 </html>

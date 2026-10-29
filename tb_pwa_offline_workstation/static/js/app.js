@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=3.0.0').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.1.0-workflow').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -73,7 +73,7 @@ async function triggerPWAInstall() {
         }
         deferredPrompt = null;
     } else {
-        alert('Panduan Pemasangan Aplikasi Offline:\n1. Pada Microsoft Edge atau Google Chrome, klik ikon menu (titik tiga di kanan atas layar).\n2. Pilih "Apps" (Aplikasi) -> "Install this site as an app" (Pasang situs ini sebagai aplikasi).\n3. Ikon "TB Triage" akan otomatis terpasang di Desktop komputer Anda dan siap dipakai tanpa internet.');
+        alert(I18N_DICT[currentLang].installHelp);
     }
 }
 
@@ -99,6 +99,7 @@ let currentTheme = 'light';
 let selectedFile = null;
 let originalImageSrc = null;
 let isSubmitting = false;
+let singleSelectionVersion = 0;
 
 // Batch State
 let batchFiles = [];
@@ -111,7 +112,7 @@ function toggleTheme() {
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
     const btn = document.getElementById('txt-theme');
-    if (btn) btn.innerText = currentTheme === 'light' ? 'Dark' : 'Light';
+    if (btn) btn.innerText = currentTheme === 'light' ? I18N_DICT[currentLang].themeDark : I18N_DICT[currentLang].themeLight;
 }
 
 // 2. Mode Switching & Single State Management
@@ -141,12 +142,12 @@ function returnToBatchMode() {
 }
 
 function resetSingleTriage() {
+    ++singleSelectionVersion;
     selectedFile = null;
     originalImageSrc = null;
     currentResultData = null;
     activeTriageAction = null;
     activeTriageWarning = null;
-    isSubmitting = false;
 
     const fileInput = document.getElementById('file-input');
     if (fileInput) fileInput.value = '';
@@ -197,6 +198,7 @@ function checkDisclaimerStatus() {
     const modal = document.getElementById('disclaimer-modal');
     if (!accepted && modal) {
         modal.style.display = 'flex';
+        queueMicrotask(() => document.getElementById('modal-language')?.focus());
     }
 }
 
@@ -210,21 +212,38 @@ function acceptDisclaimer() {
     safeStorage.setItem('tb_triage_disclaimer_accepted', 'true');
     const modal = document.getElementById('disclaimer-modal');
     if (modal) modal.style.display = 'none';
+    document.getElementById('case-workspace')?.focus();
 }
 
 // 4. System Status Indicator (100% Offline WASM Air-Gapped)
-function initSystemStatus() {
+let systemStatusVersion = 0;
+async function initSystemStatus() {
+    const version = ++systemStatusVersion;
     const statusText = document.getElementById('txt-status');
     const statusDot = document.querySelector('.status-dot');
-    const t = I18N_DICT[currentLang] || I18N_DICT.en;
-    if (statusText) {
-        statusText.innerText = t.statusDegraded || 'OFFLINE MODE (WASM)';
-    }
-    if (statusDot) {
-        statusDot.className = 'status-dot';
-        statusDot.style.background = 'var(--color-normal)';
-    }
+    const english = currentLang === 'en';
+    let offlineReady = false;
+    try {
+        const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+        if (registration && registration.active && 'caches' in window) {
+            const cache = await caches.open('tb-conformal-offline-v4.1.0-workflow');
+            const required = ['./index.html','./static/js/cases.js','./static/js/app.js','./static/js/i18n.js',
+                './static/css/workstation.css','./vendor/onnx/ort.min.js',
+                './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
+                './models/tb_conformal_distilled_v11_cam.onnx'];
+            offlineReady = (await Promise.all(required.map(path => cache.match(new URL(path, document.baseURI).href)))).every(Boolean);
+        }
+    } catch (_) {}
+    if (version !== systemStatusVersion) return;
+    if (statusText) statusText.textContent = offlineReady
+        ? (english ? 'Offline ready' : 'Offline siap')
+        : (navigator.onLine ? (english ? 'Online' : 'Daring') : (english ? 'Offline incomplete' : 'Offline belum siap'));
+    if (statusDot) statusDot.style.background = offlineReady ? 'var(--color-normal)' : 'var(--color-referral)';
 }
+window.addEventListener('online', initSystemStatus);
+window.addEventListener('offline', initSystemStatus);
+window.addEventListener('tb-language-change', initSystemStatus);
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', initSystemStatus);
 
 // 5. Single CXR Drag & Drop, File Loading
 function initSingleFileHandlers() {
@@ -263,7 +282,9 @@ function handleSingleFile(file) {
         alert(currentLang === 'en' ? 'Please upload a valid radiograph image (PNG, JPEG, WebP).' : 'Harap unggah file foto rontgen yang valid (PNG, JPEG, atau WebP).');
         return;
     }
+    const selectionVersion = ++singleSelectionVersion;
     selectedFile = file;
+    originalImageSrc = null;
     const labelName = document.getElementById('file-name-label') || document.getElementById('lbl-filename');
     const labelSize = document.getElementById('file-size-label') || document.getElementById('lbl-filesize');
     const statusBox = document.getElementById('file-status');
@@ -272,7 +293,7 @@ function handleSingleFile(file) {
     if (labelName) labelName.innerText = file.name;
     if (labelSize) labelSize.innerText = (file.size / 1024).toFixed(1) + ' KB';
     if (statusBox) statusBox.style.display = 'block';
-    if (submitBtn) submitBtn.disabled = false;
+    if (submitBtn) submitBtn.disabled = isSubmitting;
 
     // Reset previous patient's results, heatmap, and UI state to prevent desynchronization
     currentResultData = null;
@@ -284,6 +305,8 @@ function handleSingleFile(file) {
     if (loadingBox) loadingBox.style.display = 'none';
 
     const imgHeat = document.getElementById('img-heat');
+    const imgBase = document.getElementById('img-base');
+    if (imgBase) imgBase.src = '';
     if (imgHeat) imgHeat.src = '';
     const barTb = document.getElementById('bar-prob-tb');
     const barNorm = document.getElementById('bar-prob-norm');
@@ -293,6 +316,7 @@ function handleSingleFile(file) {
     // Read preview
     const reader = new FileReader();
     reader.onload = function(e) {
+        if (selectionVersion !== singleSelectionVersion || selectedFile !== file) return;
         originalImageSrc = e.target.result;
         const imgBase = document.getElementById('img-base');
         if (imgBase) imgBase.src = originalImageSrc;
@@ -312,25 +336,20 @@ function captureCamera() {
 // Enforces 100% in-browser WebAssembly ONNX forward pass (Zero Mock Invariant)
 
 async function loadBenchmarkCase(sampleName) {
+    const selectionVersion = ++singleSelectionVersion;
     try {
         setLoadingState(true);
-        const url = './samples/' + sampleName;
-        originalImageSrc = url;
-        const imgBase = document.getElementById('img-base');
-        if (imgBase) imgBase.src = url;
-
-        const resp = await fetch(url);
+        const resp = await fetch('./samples/' + sampleName);
         if (!resp.ok) throw new Error('Sample file not found: ' + sampleName);
         const blob = await resp.blob();
-
+        if (selectionVersion !== singleSelectionVersion) return;
         const file = new File([blob], sampleName, { type: blob.type || 'image/png' });
         handleSingleFile(file);
-
-        // Auto execute triage
         await submitSingleTriage();
-    } catch(err) {
+    } catch (err) {
+        if (selectionVersion !== singleSelectionVersion) return;
         setLoadingState(false);
-        alert('Failed to load clinical benchmark: ' + err.message);
+        alert(I18N_DICT[currentLang].errorSample + ' ' + err.message);
     }
 }
 
@@ -341,7 +360,16 @@ let isModelLoading = false;
 // IndexedDB Model Blob Cache for 0ms offline retrieval
 const MODEL_CACHE_DB = 'tb_triage_model_cache_v2';
 const MODEL_CACHE_STORE = 'model_blobs';
-const MODEL_CACHE_KEY = 'tb_conformal_distilled_v11_cam.onnx';
+const MODEL_SHA256 = '3f99751804bdd240ab3bea6b708456c51270acca6eeb71e659243ece0cd92592';
+const MODEL_CACHE_KEY = 'tb_conformal_distilled_v11_cam.onnx:' + MODEL_SHA256;
+
+async function verifyModelBuffer(buffer) {
+    if (!globalThis.crypto || !crypto.subtle) throw new Error('Secure SHA-256 verification is unavailable.');
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    const sha = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    if (sha !== MODEL_SHA256) throw new Error('Model SHA-256 mismatch; refusing unverified weights.');
+    return buffer;
+}
 
 function getCachedModelBuffer() {
     return new Promise(function(resolve) {
@@ -417,17 +445,16 @@ async function fetchModelBufferWithFallback(onProgress) {
     // 1. Check local IndexedDB cache first (0 ms instant offline loading)
     const cached = await getCachedModelBuffer();
     if (cached) {
+        try {
+        await verifyModelBuffer(cached);
         console.log('[Model Loader] Loaded model from local IndexedDB cache (' + (cached.byteLength / (1024 * 1024)).toFixed(1) + ' MB). 0ms network latency.');
         if (onProgress) onProgress(100, cached.byteLength, cached.byteLength);
         return cached;
+        } catch (err) { console.warn('[Model Loader] Ignoring invalid cached model:', err.message); }
     }
 
-    const candidateUrls = [
-        './models/tb_conformal_distilled_v11_cam.onnx',
-        new URL('./models/tb_conformal_distilled_v11_cam.onnx', document.baseURI || window.location.href).href,
-        'https://ressshh-tb-conformal-triage-workstation.static.hf.space/models/tb_conformal_distilled_v11_cam.onnx',
-        'https://raw.githubusercontent.com/SeraKah-1/tb-conformal-triage/main/tb_pwa_offline_workstation/models/tb_conformal_distilled_v11_cam.onnx'
-    ];
+    // Local bundle only: no unpinned external model fallback.
+    const candidateUrls = ['./models/tb_conformal_distilled_v11_cam.onnx'];
 
     const uniqueUrls = [];
     candidateUrls.forEach(function(u) {
@@ -452,7 +479,8 @@ async function fetchModelBufferWithFallback(onProgress) {
                 if (buffer.byteLength < 1000000) {
                     throw new Error('Downloaded file too small (' + buffer.byteLength + ' bytes), unexpected body');
                 }
-                saveCachedModelBuffer(buffer);
+                await verifyModelBuffer(buffer);
+                await saveCachedModelBuffer(buffer);
                 return buffer;
             }
 
@@ -483,7 +511,8 @@ async function fetchModelBufferWithFallback(onProgress) {
             }
 
             const finalArrayBuffer = totalBuffer.buffer;
-            saveCachedModelBuffer(finalArrayBuffer);
+            await verifyModelBuffer(finalArrayBuffer);
+            await saveCachedModelBuffer(finalArrayBuffer);
             console.log('[Model Loader] Model download successful (' + (finalArrayBuffer.byteLength / (1024 * 1024)).toFixed(1) + ' MB). Cached in IndexedDB.');
             return finalArrayBuffer;
         } catch (err) {
@@ -721,7 +750,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
             const rowOff = (y + margin) * patchW + margin;
             for (let x = 0; x < sw - 1; x++) {
                 const diff = Math.abs(patchGray[rowOff + x] - patchGray[rowOff + x + 1]);
-                if ((x + 1) % 8 === 0) {
+                if ((patchCropX + margin + x + 1) % 8 === 0) {
                     sumBh += diff;
                     countBh++;
                 } else {
@@ -734,7 +763,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
         for (let y = 0; y < sh - 1; y++) {
             const rowOff1 = (y + margin) * patchW + margin;
             const rowOff2 = (y + margin + 1) * patchW + margin;
-            const isBoundaryRow = ((y + 1) % 8 === 0);
+            const isBoundaryRow = ((patchCropY + margin + y + 1) % 8 === 0);
             for (let x = 0; x < sw; x++) {
                 const diff = Math.abs(patchGray[rowOff1 + x] - patchGray[rowOff2 + x]);
                 if (isBoundaryRow) {
@@ -968,6 +997,9 @@ async function runClientSideInference(file, imageElement, iqaResult) {
         throw new Error('Logits tensor missing from model output. Available outputs: ' + Object.keys(results).join(', '));
     }
     const logits = logitsTensor.data;
+    if (logits.length !== 2 || !Array.from(logits).every(Number.isFinite)) {
+        throw new Error('Invalid binary logits: expected exactly two finite values.');
+    }
 
     const camTensor = results.cam || (session.outputNames && results[session.outputNames[1]]);
     const camData = (camTensor && camTensor.data) ? camTensor.data : null;
@@ -975,51 +1007,44 @@ async function runClientSideInference(file, imageElement, iqaResult) {
     const latentsTensor = results.latents || (session.outputNames && results[session.outputNames[2]]);
     const latents = (latentsTensor && latentsTensor.data) ? latentsTensor.data : null;
 
-    // Real Latent Feature OOD Detection (Mahalanobis Distance to Reference Cohort)
-    const hasOodCalib = Boolean(typeof OOD_REFERENCE_CALIBRATION !== 'undefined' && OOD_REFERENCE_CALIBRATION && OOD_REFERENCE_CALIBRATION.mu_0 && latents && latents.length >= 1024);
-    let d0 = 0.0;
-    let d1 = 0.0;
-    let dMin = 0.0;
+    // Missing or invalid OOD evidence is unknown, never in-distribution.
+    const calibration = typeof OOD_REFERENCE_CALIBRATION !== 'undefined' ? OOD_REFERENCE_CALIBRATION : null;
+    const validVector = (values, positive = false) => Boolean(values && values.length === 1024 &&
+        Array.from(values).every(v => Number.isFinite(v) && (!positive || v > 0)));
+    const hasOodCalib = Boolean(calibration && calibration.feature_dim === 1024 &&
+        validVector(calibration.mu_0) && validVector(calibration.mu_1) &&
+        validVector(calibration.std_inv, true) && Number.isFinite(calibration.threshold_diag) &&
+        calibration.threshold_diag > 0 && validVector(latents));
+    const thresholdDiag = hasOodCalib ? calibration.threshold_diag : null;
+    let d0 = null, d1 = null, dMin = null;
+    let oodAvailable = hasOodCalib;
     let isOod = false;
-    const thresholdDiag = (typeof OOD_REFERENCE_CALIBRATION !== 'undefined' && OOD_REFERENCE_CALIBRATION && OOD_REFERENCE_CALIBRATION.threshold_diag) ? OOD_REFERENCE_CALIBRATION.threshold_diag : 41.94;
-
     if (hasOodCalib) {
-        let sumSq0 = 0.0;
-        let sumSq1 = 0.0;
-        const mu0 = OOD_REFERENCE_CALIBRATION.mu_0;
-        const mu1 = OOD_REFERENCE_CALIBRATION.mu_1;
-        const stdInv = OOD_REFERENCE_CALIBRATION.std_inv;
-
+        let sumSq0 = 0, sumSq1 = 0;
         for (let i = 0; i < 1024; i++) {
-            const diff0 = (latents[i] - mu0[i]) * stdInv[i];
-            const diff1 = (latents[i] - mu1[i]) * stdInv[i];
+            const diff0 = (latents[i] - calibration.mu_0[i]) * calibration.std_inv[i];
+            const diff1 = (latents[i] - calibration.mu_1[i]) * calibration.std_inv[i];
             sumSq0 += diff0 * diff0;
             sumSq1 += diff1 * diff1;
         }
         d0 = Math.sqrt(sumSq0);
         d1 = Math.sqrt(sumSq1);
         dMin = Math.min(d0, d1);
-        isOod = (dMin > thresholdDiag);
-    } else {
-        if (!latents) {
-            console.warn('[OOD] Model does not provide latents tensor output. OOD Mahalanobis check bypassed gracefully.');
-        } else {
-            console.warn('[OOD] OOD_REFERENCE_CALIBRATION not loaded, defaulting to in-distribution.');
-        }
+        oodAvailable = Number.isFinite(d0) && Number.isFinite(d1);
+        if (!oodAvailable) d0 = d1 = dMin = null;
+        isOod = oodAvailable && dMin > thresholdDiag;
     }
-
-    const oodWarning = isOod
-        ? (currentLang === 'id'
-            ? 'Anomali OOD: Representasi fitur laten citra menyimpang dari populasi kalibrasi rontgen toraks (Jarak ' + dMin.toFixed(2) + ' > ' + thresholdDiag + '). Wajib telaah dokter spesialis.'
-            : 'OOD Anomaly: Latent feature representation diverges from thoracic reference population (Distance ' + dMin.toFixed(2) + ' > ' + thresholdDiag + '). Expert physician review mandatory.')
-        : null;
-
+    const oodWarning = !oodAvailable
+        ? (currentLang === 'id' ? 'Pemeriksaan OOD tidak tersedia atau tidak valid. Wajib telaah dokter.' : 'OOD assessment unavailable or invalid. Clinician review required.')
+        : isOod ? (currentLang === 'id' ? 'Citra berada di luar distribusi referensi. Wajib telaah dokter.' : 'Image is outside the reference distribution. Clinician review required.') : null;
     const oodReport = {
-        mahalanobis_distance: parseFloat(dMin.toFixed(2)),
-        distance_to_normal: parseFloat(d0.toFixed(2)),
-        distance_to_tb: parseFloat(d1.toFixed(2)),
+        status: !oodAvailable ? 'unavailable' : isOod ? 'out_of_distribution' : 'in_distribution',
+        available: oodAvailable,
+        mahalanobis_distance: dMin,
+        distance_to_normal: d0,
+        distance_to_tb: d1,
         threshold: thresholdDiag,
-        is_ood: isOod,
+        is_ood: oodAvailable ? isOod : null,
         warning: oodWarning
     };
 
@@ -1050,51 +1075,29 @@ async function runClientSideInference(file, imageElement, iqaResult) {
         ? iqaResult.warnings[0]
         : null;
 
-    // 4-Tier SOTA Clinical AI Decision Engine
-    // Primary binary threshold: 0.4401 (WHO CAD TPP calibrated cutoff)
-    const isTier1Normal = (probTb < 0.20 && probNormal >= 0.80 && conformalSet.length === 1 && conformalSet[0] === 'Normal');
-
-    if (probTb >= 0.65) {
-        // Tier 4: High Risk Active TB (Cito GeneXpert)
+    // Investigational assistive policy: no patient may be discharged by this app.
+    // A valid OOD/IQA assessment is required before even an assistive model action.
+    const qualityValid = Boolean(iqaResult && iqaResult.quality_passed === true && !hasQualityAdvisory);
+    if (!qualityValid || !oodAvailable || isOod) {
+        warningMsg = oodWarning || (currentLang === 'id'
+            ? 'Kualitas citra memerlukan telaah dokter. Keputusan otomatis ditahan.'
+            : 'Image quality requires clinician review. Automated decision withheld.');
+    } else if (probTb >= 0.65) {
         triageAction = 'AUTO_FLAG_TB_URGENT';
-        safetyInterlock = false;
-        warningMsg = (currentLang === 'id')
-            ? 'PERINGATAN: Dicurigai Kuat TB Paru Aktif (Probabilitas P(TB)=' + (probTb * 100).toFixed(1) + '%). TINDAKAN SEGERA: Kumpulkan dahak untuk tes TCM (GeneXpert) dan isolasi kontak erat.'
-            : 'WARNING: High Risk Pulmonary TB suspected (Calibrated P(TB)=' + (probTb * 100).toFixed(1) + '%). IMMEDIATE ACTION: Order sputum TCM GeneXpert test and urgent clinician evaluation.';
-    } else if (probTb >= 0.4401) {
-        // Tier 3: Presumptive TB / Moderate Suspicion (Prioritas Dokter)
-        triageAction = 'PRESUMPTIVE_TB_DOCTOR_EVAL';
-        safetyInterlock = true;
-        warningMsg = (currentLang === 'id')
-            ? 'PERHATIAN: Presumtif TB Paru (Probabilitas P(TB)=' + (probTb * 100).toFixed(1) + '%). Ditemukan kecurigaan lesi paru aktif. TINDAKAN MEDIS: Prioritaskan pemeriksaan dahak TCM dan telaah dokter.'
-            : 'PRESUMPTIVE TB: Moderate clinical suspicion (P(TB)=' + (probTb * 100).toFixed(1) + '%). Focal pulmonary markings detected. CLINICAL ACTION: Priority clinician review and sputum testing indicated.';
-    } else if (isTier1Normal && !hasQualityAdvisory && !isOod) {
-        // Tier 1: Definite Normal (Klirens Mandiri)
-        triageAction = 'AUTO_RELEASE_NORMAL';
-        safetyInterlock = false;
-        warningMsg = (currentLang === 'id')
-            ? 'Hasil: Paru Bersih Terverifikasi (P(Normal)=' + (probNormal * 100).toFixed(1) + '%). Tidak tampak tanda lesi atau kavitas aktif. Klirens skrining mandiri aman.'
-            : 'Clear Lungs Verified (P(Normal)=' + (probNormal * 100).toFixed(1) + '%). No active infiltrates or cavitary lesions. Safe for autonomous routine clearance.';
+        warningMsg = currentLang === 'id'
+            ? 'Dugaan TB: prioritaskan telaah dokter dan konfirmasi molekuler sesuai protokol klinis. Hasil AI bukan diagnosis.'
+            : 'Suspected TB: prioritize clinician review and molecular confirmation under the clinical protocol. AI output is not a diagnosis.';
+    } else if (probTb < 0.20 && conformalSet.length === 1 && conformalSet[0] === 'Normal') {
+        triageAction = 'ASSISTIVE_NORMAL_DOCTOR_VERIFY';
+        warningMsg = currentLang === 'id'
+            ? 'Skor model rendah dengan singleton Normal. Verifikasi dokter tetap wajib; tidak ada pelepasan pasien otomatis.'
+            : 'Low model score with a Normal singleton. Clinician verification remains mandatory; no autonomous patient clearance.';
     } else {
-        // Tier 2: Probable Normal / Low Risk (Corakan Normal / Evaluasi Rutin)
-        triageAction = 'PROBABLE_NORMAL_MONITOR';
-        safetyInterlock = true;
-        warningMsg = (currentLang === 'id')
-            ? 'Hasil: Corakan Paru Normal (P(Normal)=' + (probNormal * 100).toFixed(1) + '%, P(TB)=' + (probTb * 100).toFixed(1) + '%). Risiko TB rendah. Evaluasi gejala klinis rutin bila batuk berlanjut.'
-            : 'Probable Normal (P(Normal)=' + (probNormal * 100).toFixed(1) + '%, P(TB)=' + (probTb * 100).toFixed(1) + '%). Low TB risk. Routine clinical symptom evaluation advised if cough persists.';
+        warningMsg = currentLang === 'id'
+            ? 'Hasil model ambigu atau intermediate. Wajib telaah dokter; jangan gunakan hasil ini untuk melepas pasien.'
+            : 'Ambiguous or intermediate model output. Clinician review required; do not use this output to clear a patient.';
     }
-
-    // Append Informative Quality & OOD Advisories without blocking the decision
-    const advisories = [];
-    if (isOod) {
-        advisories.push(currentLang === 'id' ? 'Variasi detector rontgen' : 'Hardware detector variation');
-    }
-    if (hasQualityAdvisory && iqaAdvisoryWarning) {
-        advisories.push(iqaAdvisoryWarning);
-    }
-    if (advisories.length > 0) {
-        warningMsg += ' [' + advisories.join('; ') + ']';
-    }
+    if (iqaAdvisoryWarning) warningMsg += ' ' + iqaAdvisoryWarning;
 
     const heatDataUrl = (!camData) ? null : generateHeatmapDataUrl(camData, imageElement.naturalWidth || 512, imageElement.naturalHeight || 512, probTb);
     const heatBase64 = heatDataUrl;
@@ -1103,15 +1106,17 @@ async function runClientSideInference(file, imageElement, iqaResult) {
     return {
         filename: file.name,
         predicted_class: probTb >= 0.4401 ? 'Tuberculosis' : 'Normal',
-        probability_tb: parseFloat(probTb.toFixed(4)),
-        probability_normal: parseFloat(probNormal.toFixed(4)),
+        probability_tb: probTb,
+        probability_normal: probNormal,
+        logit_margin_tb_normal: logits[1] - logits[0],
         decision_threshold_used: 0.4401,
         triage_action: triageAction,
         conformal_details: {
             conformal_set: conformalSet,
             quantile_q0_normal: q0,
             quantile_q1_tb: q1,
-            nominal_coverage_guarantee: '>= 95.0%',
+            nominal_coverage_guarantee: '95% nominal target; requires exchangeability',
+            policy_version: 'assistive-review-v1',
             clinical_action_code: triageAction,
             safety_interlock_engaged: safetyInterlock
         },
@@ -1127,69 +1132,76 @@ async function runClientSideInference(file, imageElement, iqaResult) {
 
 // 8. Single CXR Triage Execution (Dual Mode Live/Static)
 async function submitSingleTriage() {
+    if (window.caseWorkspace?.state.running) return;
     if (!selectedFile || isSubmitting) return;
+    const file = selectedFile;
+    const selectionVersion = singleSelectionVersion;
+    const isCurrent = () => selectionVersion === singleSelectionVersion && selectedFile === file;
     isSubmitting = true;
+    let requestSource = null;
     setLoadingState(true);
-
     try {
-        if (!originalImageSrc && selectedFile) {
-            originalImageSrc = await new Promise((resolve, reject) => {
-                const r = new FileReader();
-                r.onload = () => resolve(r.result);
-                r.onerror = reject;
-                r.readAsDataURL(selectedFile);
-            });
-        }
-        const tempImg = new Image();
-        tempImg.src = originalImageSrc;
-        await new Promise((resolve, reject) => {
-            if (tempImg.complete) resolve();
-            else {
-                tempImg.onload = resolve;
-                tempImg.onerror = () => reject(new Error(currentLang === 'en' ? 'Corrupt or unreadable image file' : 'File foto rontgen rusak atau format tidak terbaca'));
-            }
+        // Always read this request's own file, including while its preview is still loading.
+        const source = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('Unable to read image file.'));
+            reader.readAsDataURL(file);
         });
-
-        // 1. Pre-Analytic IQA Gatekeeper Evaluation (Fail-Fast)
+        if (!isCurrent()) return;
+        requestSource = source;
+        const tempImg = new Image();
+        await new Promise((resolve, reject) => {
+            tempImg.onload = resolve;
+            tempImg.onerror = () => reject(new Error('Corrupt or unreadable image file.'));
+            tempImg.src = source;
+            if (tempImg.complete && tempImg.naturalWidth > 0) resolve();
+        });
+        if (!isCurrent()) return;
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if (!iqaResult.quality_passed) {
-            setLoadingState(false);
-            isSubmitting = false;
-            renderRejectionResults(selectedFile.name, iqaResult);
+            renderRejectionResults(file.name, iqaResult, source);
             return;
         }
-
-        // 2. Pure 100% In-Browser WebAssembly Inference (0ms Network Latency, Air-Gapped Local RAM)
-        const progressCb = function(percent, received, total) {
-            const receivedMb = (received / (1024 * 1024)).toFixed(1);
-            const totalMb = (total / (1024 * 1024)).toFixed(1);
-            const title = currentLang === 'id' 
-                ? 'Menyiapkan Model AI: ' + percent + '% (' + receivedMb + ' / ' + totalMb + ' MB)'
-                : 'Preparing AI Model: ' + percent + '% (' + receivedMb + ' / ' + totalMb + ' MB)';
-            const sub = currentLang === 'id'
-                ? 'Mengunduh model ke memori peramban (hanya 1x, otomatis tersimpan offline)...'
-                : 'Loading model into browser RAM (cached offline for future use)...';
-            setLoadingState(true, title, sub);
-        };
-
-        await getOrtSession(progressCb);
-        setLoadingState(true, 
-            currentLang === 'id' ? 'Memeriksa Foto Rontgen Dada...' : 'Analyzing Chest Radiograph...',
-            currentLang === 'id' ? 'Sedang meneliti corakan paru dan mencari tanda bercak TB aktif...' : 'Screening lung fields and detecting signs of active TB lesions...'
-        );
-
-        const data = await runClientSideInference(selectedFile, tempImg, iqaResult);
-        setLoadingState(false);
-        isSubmitting = false;
+        await getOrtSession();
+        if (!isCurrent()) return;
+        const data = await runClientSideInference(file, tempImg, iqaResult);
+        if (!isCurrent()) return;
+        data.source_image = source;
         renderSingleResults(data);
-    } catch(wasmErr) {
-        setLoadingState(false);
+    } catch (err) {
+        if (!isCurrent()) return;
+        renderRuntimeError(err.message || 'AI execution error', requestSource);
+    } finally {
         isSubmitting = false;
-        console.error('[WASM INFERENCE ERROR]', wasmErr);
-        const resultsBox = document.getElementById('results-display');
-        if (resultsBox) resultsBox.style.display = 'block';
-        renderIdiograph('ERROR_RUNTIME', wasmErr.message || 'WASM Execution Error');
+        setLoadingState(false);
     }
+}
+
+function renderRuntimeError(warning, sourceImage = null) {
+    currentResultData = null;
+    const results = document.getElementById('results-display');
+    const empty = document.getElementById('empty-state');
+    if (results) results.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+    for (const id of ['val-prob-tb', 'val-prob-norm', 'met-set', 'met-lat']) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = 'N/A';
+    }
+    for (const id of ['bar-prob-tb', 'bar-prob-norm']) {
+        const el = document.getElementById(id);
+        if (el) el.style.width = '0%';
+    }
+    for (const id of ['img-base', 'img-heat']) {
+        const el = document.getElementById(id);
+        if (el) el.src = sourceImage || '';
+    }
+    const action = document.getElementById('met-action');
+    const ood = document.getElementById('met-ood');
+    if (action) action.innerText = 'ERROR_RUNTIME';
+    if (ood) ood.innerText = 'UNAVAILABLE';
+    setSliderMode('orig');
+    renderIdiograph('ERROR_RUNTIME', warning);
 }
 
 function setLoadingState(isLoading, titleText, subText) {
@@ -1200,7 +1212,7 @@ function setLoadingState(isLoading, titleText, subText) {
     const titleEl = document.getElementById('txt-loading-title');
     const subEl = document.getElementById('txt-loading-sub');
 
-    if (submitBtn) submitBtn.disabled = isLoading;
+    if (submitBtn) submitBtn.disabled = isLoading || !selectedFile;
 
     if (isLoading) {
         if (titleText && titleEl) titleEl.innerText = titleText;
@@ -1216,7 +1228,18 @@ function setLoadingState(isLoading, titleText, subText) {
 let currentResultData = null;
 
 function renderSingleResults(data) {
+    const ood = data?.ood_report;
+    const invalidOod = ood?.available === true && (!Number.isFinite(ood.mahalanobis_distance)
+        || ood.mahalanobis_distance < 0 || !Number.isFinite(ood.threshold) || ood.threshold <= 0
+        || typeof ood.is_ood !== 'boolean');
+    if (!data || !Number.isFinite(data.probability_tb) || !Number.isFinite(data.probability_normal)
+        || data.probability_tb < 0 || data.probability_tb > 1 || data.probability_normal < 0
+        || data.probability_normal > 1 || !Array.isArray(data.conformal_details?.conformal_set) || invalidOod) {
+        renderRuntimeError(currentLang === 'en' ? 'Result data is incomplete. Review the source image.' : 'Data hasil tidak lengkap. Tinjau gambar asli.', data?.source_image || null);
+        return;
+    }
     currentResultData = data;
+    const sourceImage = data.source_image;
     const emptyBox = document.getElementById('empty-state');
     const resultsBox = document.getElementById('results-display');
     if (emptyBox) emptyBox.style.display = 'none';
@@ -1226,11 +1249,15 @@ function renderSingleResults(data) {
 
     // 1. Idiograph & Action Banner
     renderIdiograph(data.triage_action, data.warning, isOod, null, data.ood_report);
+    if (data.iqa_report?.warnings?.length) {
+        const desc = document.getElementById('action-desc');
+        if (desc) desc.textContent += currentLang === 'en' ? ' Image quality warnings are present. Review the original image.' : 'Ada peringatan kualitas gambar. Tinjau gambar asli.';
+    }
 
     // 2. Images in Comparison Slider
     const imgBase = document.getElementById('img-base');
     const imgHeat = document.getElementById('img-heat');
-    if (imgBase && originalImageSrc) imgBase.src = originalImageSrc;
+    if (imgBase && sourceImage) imgBase.src = sourceImage;
     const rawHeat = data.hirescam_heatmap_base64 || data.hirescam_overlay_url;
     if (imgHeat) {
         if (rawHeat) {
@@ -1240,7 +1267,7 @@ function renderSingleResults(data) {
                 imgHeat.src = 'data:image/png;base64,' + rawHeat;
             }
         } else {
-            if (originalImageSrc) imgHeat.src = originalImageSrc;
+            if (sourceImage) imgHeat.src = sourceImage;
         }
     }
     setSliderMode('split');
@@ -1272,19 +1299,22 @@ function renderSingleResults(data) {
     
     if (metOod) {
         if (isOod) {
-            metOod.innerText = 'OOD ANOMALY (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ' > ' + data.ood_report.threshold + ')';
+            metOod.innerText = I18N_DICT[currentLang].oodOutside + ' (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ' > ' + data.ood_report.threshold + ')';
             metOod.style.color = 'var(--color-referral)';
-        } else if (data.ood_report) {
-            metOod.innerText = 'IN-DISTRIBUTION (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ')';
+        } else if (data.ood_report && data.ood_report.available === true) {
+            metOod.innerText = I18N_DICT[currentLang].oodWithin + ' (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ')';
             metOod.style.color = 'var(--color-normal)';
+        } else {
+            metOod.innerText = I18N_DICT[currentLang].oodUnavailable;
+            metOod.style.color = 'var(--color-referral)';
         }
     }
 
     if (metLat) metLat.innerText = data.inference_latency_ms + ' ms';
 }
 
-function renderRejectionResults(filename, iqa) {
-    currentResultData = { filename: filename, is_rejection: true, iqa_report: iqa };
+function renderRejectionResults(filename, iqa, sourceImage = null) {
+    currentResultData = { filename: filename, is_rejection: true, iqa_report: iqa, source_image: sourceImage };
 
     const emptyBox = document.getElementById('empty-state');
     const resultsBox = document.getElementById('results-display');
@@ -1297,8 +1327,8 @@ function renderRejectionResults(filename, iqa) {
     // 2. Images in Comparison Slider: Native radiograph only
     const imgBase = document.getElementById('img-base');
     const imgHeat = document.getElementById('img-heat');
-    if (imgBase && originalImageSrc) imgBase.src = originalImageSrc;
-    if (imgHeat && originalImageSrc) imgHeat.src = originalImageSrc;
+    if (imgBase && sourceImage) imgBase.src = sourceImage;
+    if (imgHeat && sourceImage) imgHeat.src = sourceImage;
     setSliderMode('orig');
 
     // 3. Probabilities: 0.00%
@@ -1307,8 +1337,8 @@ function renderRejectionResults(filename, iqa) {
     const barTb = document.getElementById('bar-prob-tb');
     const barNorm = document.getElementById('bar-prob-norm');
 
-    if (valTb) valTb.innerText = '0.00%';
-    if (valNorm) valNorm.innerText = '0.00%';
+    if (valTb) valTb.innerText = 'N/A';
+    if (valNorm) valNorm.innerText = 'N/A';
     if (barTb) barTb.style.width = '0%';
     if (barNorm) barNorm.style.width = '0%';
 
@@ -1318,16 +1348,16 @@ function renderRejectionResults(filename, iqa) {
     const metOod = document.getElementById('met-ood');
     const metLat = document.getElementById('met-lat');
 
-    if (metSet) metSet.innerText = '{Ditolak / Rejected}';
+    if (metSet) metSet.innerText = I18N_DICT[currentLang].rejected;
     if (metAction) {
         metAction.innerText = iqa.reject_code;
         metAction.style.color = 'var(--color-tb)';
     }
     if (metOod) {
-        metOod.innerText = 'REJECTED (PRE-ANALYTIC)';
+        metOod.innerText = I18N_DICT[currentLang].rejected;
         metOod.style.color = 'var(--color-tb)';
     }
-    if (metLat) metLat.innerText = '< 5 ms (IQA Gatekeeper)';
+    if (metLat) metLat.innerText = I18N_DICT[currentLang].latencyUnavailable;
 }
 
 let activeTriageAction = null;
@@ -1336,7 +1366,7 @@ let activeTriageWarning = null;
 function refreshActiveIdiograph() {
     if (currentResultData) {
         if (currentResultData.is_rejection) {
-            renderRejectionResults(currentResultData.filename, currentResultData.iqa_report);
+            renderRejectionResults(currentResultData.filename, currentResultData.iqa_report, currentResultData.source_image);
         } else {
             renderSingleResults(currentResultData);
         }
@@ -1360,8 +1390,8 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
     // Case 0: Technical / Corrupt Image Runtime Error
     if (action === 'ERROR_RUNTIME') {
         banner.classList.add('action-reject');
-        if (badge) badge.innerText = currentLang === 'en' ? 'AI ENGINE ERROR' : 'KESALAHAN SISTEM RUNTIME';
-        if (title) title.innerText = currentLang === 'en' ? 'AI Model Execution Error' : 'Gagal Menjalankan Mesin AI';
+        if (badge) badge.innerText = currentLang === 'en' ? 'Processing failed' : 'Proses gagal';
+        if (title) title.innerText = I18N_DICT[currentLang].errorRuntimeTitle;
         if (desc) desc.innerText = warning || (currentLang === 'en' ? 'Model failed to initialize or execute.' : 'Terjadi kendala saat memuat atau menjalankan model AI.');
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
@@ -1405,19 +1435,19 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
     }
 
     // Case 2: 4-Tier SOTA Clinical AI Decision Engine
-    if (action === 'AUTO_RELEASE_NORMAL') {
+    if (action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
         banner.classList.add('action-normal');
-        if (badge) badge.innerText = t.actionNormalBadge;
-        if (title) title.innerText = t.actionNormalTitle;
-        if (desc) desc.innerText = warning || t.actionNormalDesc;
+        if (badge) badge.innerText = currentLang === 'id' ? 'Review wajib' : 'Review required';
+        if (title) title.innerText = currentLang === 'id' ? 'Skor rendah' : 'Low score';
+        if (desc) desc.innerText = t.actionNormalDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
         }
-    } else if (action === 'PROBABLE_NORMAL_MONITOR' || action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
+    } else if (action === 'LEGACY_NORMAL_REQUIRES_REVIEW') {
         banner.classList.add('action-normal');
         if (badge) badge.innerText = t.actionNormalProbBadge || t.actionNormalBadge;
         if (title) title.innerText = t.actionNormalProbTitle || t.actionNormalTitle;
-        if (desc) desc.innerText = warning || t.actionNormalProbDesc || t.actionNormalDesc;
+        if (desc) desc.innerText = t.actionNormalProbDesc || t.actionNormalDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
         }
@@ -1425,7 +1455,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         banner.classList.add('action-referral');
         if (badge) badge.innerText = t.actionTbProbBadge || t.actionRefBadge;
         if (title) title.innerText = t.actionTbProbTitle || t.actionRefTitle;
-        if (desc) desc.innerText = warning || t.actionTbProbDesc || t.actionRefDesc;
+        if (desc) desc.innerText = t.actionTbProbDesc || t.actionRefDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
         }
@@ -1433,7 +1463,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         banner.classList.add('action-tb');
         if (badge) badge.innerText = t.actionTbBadge;
         if (title) title.innerText = t.actionTbTitle;
-        if (desc) desc.innerText = warning || t.actionTbDesc;
+        if (desc) desc.innerText = t.actionTbDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
         }
@@ -1441,7 +1471,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         banner.classList.add('action-referral');
         if (badge) badge.innerText = t.actionRefBadge;
         if (title) title.innerText = t.actionRefTitle;
-        if (desc) desc.innerText = warning || t.actionRefDesc;
+        if (desc) desc.innerText = t.actionRefDesc;
         if (iconContainer) {
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
         }
@@ -1480,6 +1510,8 @@ function initBatchHandlers() {
 }
 
 function queueBatchFiles(files) {
+    if (isBatchRunning) return;
+    resetBatchTriage();
     batchFiles = files.filter(f => f.name.match(/\.(png|jpe?g|webp)$/i));
     const statusLabel = document.getElementById('batch-queue-status');
     const startBtn = document.getElementById('btn-batch-start');
@@ -1488,94 +1520,50 @@ function queueBatchFiles(files) {
 
     if (statusLabel) {
         statusLabel.innerText = currentLang === 'en'
-            ? `${batchFiles.length} radiographs queued for parallel screening.`
-            : `${batchFiles.length} foto rontgen siap untuk diskrining massal.`;
+            ? `${batchFiles.length} images queued.`
+            : `${batchFiles.length} gambar mengantre.`;
     }
     if (kpiTotal) kpiTotal.innerText = batchFiles.length;
     if (startBtn) startBtn.disabled = batchFiles.length === 0;
 }
 
+function technicalBatchResult(file, action, warning, iqa, elapsed) {
+    return {
+        filename: file.name,
+        predicted_class: action === 'ERROR_RUNTIME' ? 'Error' : 'Rejected',
+        probability_tb: null, probability_normal: null,
+        triage_action: action,
+        conformal_details: { conformal_set: [], nominal_coverage_guarantee: 'N/A',
+            clinical_action_code: action, safety_interlock_engaged: true, policy_version: 'assistive-review-v1' },
+        warning, iqa_report: iqa || null,
+        ood_report: { status: 'unavailable', available: false, mahalanobis_distance: null, threshold: null, is_ood: null },
+        allow_autonomous_release: false, hirescam_heatmap_base64: null,
+        inference_latency_ms: Math.round(elapsed), execution_mode: 'IN_BROWSER_WASM'
+    };
+}
+
 async function processBatchItem(file) {
+    const start = performance.now();
     const imgUrl = URL.createObjectURL(file);
     const tempImg = new Image();
-    tempImg.src = imgUrl;
-
+    let decoded = false;
     try {
         await new Promise((resolve, reject) => {
             tempImg.onload = resolve;
-            tempImg.onerror = () => reject(new Error(currentLang === 'en' ? 'Corrupt or unreadable image file' : 'File citra rusak atau tidak dapat dibaca'));
+            tempImg.onerror = () => reject(new Error('Corrupt or unreadable image file.'));
+            tempImg.src = imgUrl;
+            if (tempImg.complete && tempImg.naturalWidth > 0) resolve();
         });
-
-        // 1. Pre-Analytic Quality Assessment (Fail-Fast for Batch Items)
+        decoded = true;
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if (!iqaResult.quality_passed) {
-            const rejectAction = iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH';
-            return {
-                filename: file.name,
-                predicted_class: 'Rejected',
-                probability_tb: 0.0,
-                probability_normal: 0.0,
-                decision_threshold_used: 0.4401,
-                triage_action: rejectAction,
-                conformal_details: {
-                    conformal_set: ['Rejected'],
-                    quantile_q0_normal: 0.2817,
-                    quantile_q1_tb: 0.9551,
-                    nominal_coverage_guarantee: 'N/A',
-                    clinical_action_code: rejectAction,
-                    safety_interlock_engaged: true
-                },
-                warning: iqaResult.warnings.join('; '),
-                iqa_report: iqaResult,
-                ood_report: {
-                    mahalanobis_distance: 0,
-                    threshold: (typeof OOD_REFERENCE_CALIBRATION !== 'undefined') ? OOD_REFERENCE_CALIBRATION.threshold_diag : 41.94,
-                    is_ood: false,
-                    warning: 'Pre-analytic rejection: ' + rejectAction
-                },
-                allow_autonomous_release: false,
-                hirescam_heatmap_base64: null,
-                inference_latency_ms: 2,
-                execution_mode: 'IN_BROWSER_WASM'
-            };
+            return technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH',
+                (iqaResult.warnings || []).join('; '), iqaResult, performance.now() - start);
         }
-
-        // 2. Client-Side WASM Inference with Real Latent OOD Check
-        const data = await runClientSideInference(file, tempImg, iqaResult);
-        return data;
-    } catch(imgErr) {
-        return {
-            filename: file.name,
-            predicted_class: 'Rejected',
-            probability_tb: 0.0,
-            probability_normal: 0.0,
-            decision_threshold_used: 0.4401,
-            triage_action: 'REJECT_CORRUPT_IMAGE',
-            conformal_details: {
-                conformal_set: ['Rejected'],
-                quantile_q0_normal: 0.2817,
-                quantile_q1_tb: 0.9551,
-                nominal_coverage_guarantee: 'N/A',
-                clinical_action_code: 'REJECT_CORRUPT_IMAGE',
-                safety_interlock_engaged: true
-            },
-            warning: imgErr.message || (currentLang === 'en' ? 'Corrupt image' : 'Citra rusak'),
-            iqa_report: {
-                quality_passed: false,
-                reject_code: 'REJECT_CORRUPT_IMAGE',
-                warnings: [imgErr.message || 'Corrupt or unreadable image file']
-            },
-            ood_report: {
-                mahalanobis_distance: 0,
-                threshold: 41.94,
-                is_ood: false,
-                warning: 'Corrupted image file'
-            },
-            allow_autonomous_release: false,
-            hirescam_heatmap_base64: null,
-            inference_latency_ms: 1,
-            execution_mode: 'IN_BROWSER_WASM'
-        };
+        return await runClientSideInference(file, tempImg, iqaResult);
+    } catch (err) {
+        return technicalBatchResult(file, decoded ? 'ERROR_RUNTIME' : 'REJECT_CORRUPT_IMAGE',
+            err.message || 'Processing failed; clinician review required.', null, performance.now() - start);
     } finally {
         URL.revokeObjectURL(imgUrl);
     }
@@ -1589,6 +1577,7 @@ function cancelBatchProcessing() {
 }
 
 async function startBatchProcessing() {
+    if (window.caseWorkspace?.state.running) return;
     if (batchFiles.length === 0 || isBatchRunning) return;
     isBatchRunning = true;
     isBatchCancelled = false;
@@ -1642,7 +1631,7 @@ async function startBatchProcessing() {
             row.className = 'clickable-row';
             row.innerHTML = `
                 <td>${currentIndex + 1}</td>
-                <td>${file.name}</td>
+                <td>${escapeHtml(file.name)}</td>
                 <td id="status-${currentIndex}">${t.batchStatusProcessing}</td>
                 <td id="prob-${currentIndex}">-</td>
                 <td id="action-${currentIndex}">-</td>
@@ -1658,14 +1647,15 @@ async function startBatchProcessing() {
                 if (data) {
                     batchResults[currentIndex] = data;
                     const isRejected = data.triage_action.startsWith('REJECT_') || data.predicted_class === 'Rejected';
+                    const isRuntimeError = data.triage_action === 'ERROR_RUNTIME';
                     const statusCell = document.getElementById(`status-${currentIndex}`);
                     const probCell = document.getElementById(`prob-${currentIndex}`);
                     const actionCell = document.getElementById(`action-${currentIndex}`);
                     const latCell = document.getElementById(`lat-${currentIndex}`);
                     const optCell = document.getElementById(`opt-${currentIndex}`);
 
-                    if (statusCell) statusCell.innerText = isRejected ? t.batchStatusRejected : t.batchStatusSuccess;
-                    if (probCell) probCell.innerText = isRejected ? '0.0%' : (data.probability_tb * 100).toFixed(1) + '%';
+                    if (statusCell) statusCell.innerText = isRuntimeError ? t.batchStatusFailed : isRejected ? t.batchStatusRejected : t.batchStatusSuccess;
+                    if (probCell) probCell.innerText = (isRejected || !Number.isFinite(data.probability_tb)) ? 'N/A' : (data.probability_tb * 100).toFixed(1) + '%';
                     if (actionCell) actionCell.innerText = data.triage_action;
                     if (latCell) latCell.innerText = lat + ' ms';
                     if (optCell) {
@@ -1673,9 +1663,9 @@ async function startBatchProcessing() {
                     }
                     row.onclick = () => inspectBatchItem(currentIndex);
 
-                    if (data.triage_action === 'AUTO_RELEASE_NORMAL' || data.triage_action === 'PROBABLE_NORMAL_MONITOR' || data.triage_action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
+                    if (data.triage_action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
                         normalCount++;
-                    } else if (data.triage_action === 'AUTO_FLAG_TB_URGENT' || data.triage_action === 'PRESUMPTIVE_TB_DOCTOR_EVAL') {
+                    } else if (data.triage_action === 'AUTO_FLAG_TB_URGENT') {
                         tbCount++;
                     } else {
                         refCount++;
@@ -1685,7 +1675,7 @@ async function startBatchProcessing() {
                     const statusCell = document.getElementById(`status-${currentIndex}`);
                     const actionCell = document.getElementById(`action-${currentIndex}`);
                     if (statusCell) statusCell.innerText = t.batchStatusFailed;
-                    if (actionCell) actionCell.innerText = 'Inference failed';
+                    if (actionCell) actionCell.innerText = I18N_DICT[currentLang].inferenceFailed;
                 }
             } catch(e) {
                 batchResults[currentIndex] = null;
@@ -1732,8 +1722,10 @@ function inspectBatchItem(index) {
     const data = batchResults[index];
     if (!file || !data) return;
 
+    const selectionVersion = ++singleSelectionVersion;
     const reader = new FileReader();
     reader.onload = function(e) {
+        if (selectionVersion !== singleSelectionVersion) return;
         selectedFile = file;
         originalImageSrc = e.target.result;
 
@@ -1754,14 +1746,17 @@ function inspectBatchItem(index) {
         const returnBtn = document.getElementById('btn-batch-return');
         if (returnBtn) returnBtn.style.display = 'inline-flex';
 
-        if (data.is_rejection || (data.triage_action && data.triage_action.startsWith('REJECT_'))) {
-            renderRejectionResults(data.filename, data.iqa_report || { reject_code: data.triage_action, warnings: [data.warning || 'Pre-analytic rejection'] });
+        if (data.triage_action === 'ERROR_RUNTIME') {
+            renderRuntimeError(data.warning, e.target.result);
+        } else if (data.is_rejection || (data.triage_action && data.triage_action.startsWith('REJECT_'))) {
+            renderRejectionResults(data.filename, data.iqa_report || { reject_code: data.triage_action, warnings: [data.warning || 'Pre-analytic rejection'] }, e.target.result);
         } else {
-            renderSingleResults(data);
+            renderSingleResults({ ...data, source_image: e.target.result });
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     reader.onerror = function() {
+        if (selectionVersion !== singleSelectionVersion) return;
         switchMode('single');
         const returnBtn = document.getElementById('btn-batch-return');
         if (returnBtn) returnBtn.style.display = 'inline-flex';
@@ -1810,23 +1805,34 @@ function resetBatchTriage() {
     }
 }
 
-function exportBatchCsv() {
-    const validResults = batchResults.filter(Boolean);
-    if (validResults.length === 0) return;
-    const headers = ['Index', 'Filename', 'Predicted_Class', 'Probability_TB', 'Probability_Normal', 'Conformal_Set', 'Triage_Action', 'Latency_ms'];
-    const rows = validResults.map((r, i) => [
-        i + 1,
-        `"${r.filename}"`,
-        r.predicted_class,
-        r.probability_tb.toFixed(4),
-        r.probability_normal.toFixed(4),
-        `"${(r.conformal_details && r.conformal_details.conformal_set) ? r.conformal_details.conformal_set.join('; ') : ''}"`,
-        r.triage_action,
-        r.inference_latency_ms
-    ]);
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+}
 
-    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+function csvCell(value) {
+    let text = value == null ? '' : String(value);
+    // Keep untrusted filenames from becoming spreadsheet formulas, including leading whitespace.
+    if (/^[\s]*[=+@-]/.test(text) || /^[\t\r\n]/.test(text)) text = "'" + text;
+    return '"' + text.replace(/"/g, '""') + '"';
+}
+
+function buildBatchCsv(results) {
+    const headers = ['Index', 'Filename', 'Predicted_Class', 'Probability_TB', 'Probability_Normal', 'Conformal_Set', 'Triage_Action', 'Latency_ms', 'Safety_Interlock', 'OOD_Status', 'IQA_Passed', 'Warning', 'Policy_Version', 'Logit_Margin_TB_Normal'];
+    const rows = results.filter(Boolean).map((r, i) => [
+        i + 1, r.filename, r.predicted_class,
+        Number.isFinite(r.probability_tb) ? r.probability_tb : null,
+        Number.isFinite(r.probability_normal) ? r.probability_normal : null,
+        r.conformal_details?.conformal_set?.join('; ') || '', r.triage_action, r.inference_latency_ms,
+        r.conformal_details?.safety_interlock_engaged, r.ood_report?.status || 'unavailable',
+        r.iqa_report?.quality_passed, r.warning, r.conformal_details?.policy_version || 'assistive-review-v1',
+        Number.isFinite(r.logit_margin_tb_normal) ? r.logit_margin_tb_normal : null
+    ]);
+    return [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+}
+
+function exportBatchCsv() {
+    if (!batchResults.some(Boolean)) return;
+    const blob = new Blob([buildBatchCsv(batchResults)], { type: 'text/csv;charset=utf-8;' });
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = blobUrl;
@@ -1844,14 +1850,17 @@ document.addEventListener('DOMContentLoaded', function() {
     initSystemStatus();
     applyLanguage(currentLang);
     
-    // Background preload ONNX model into browser RAM so inference is instant
-    setTimeout(function() {
-        if (!ortSession && !isModelLoading) {
-            getOrtSession().then(function() {
-                console.log('[ORT PRELOAD] DenseNet-121 model cached in RAM.');
-            }).catch(function(e) {
-                console.log('[ORT PRELOAD NOTICE] Background preload deferred to user interaction:', e);
-            });
-        }
-    }, 1500);
+    // Load the inference session only after an explicit processing action.
+
+});
+
+// Keep keyboard focus inside the initial research notice until it is accepted.
+document.addEventListener('keydown', event => {
+    const modal = document.getElementById('disclaimer-modal');
+    if (event.key !== 'Tab' || !modal || getComputedStyle(modal).display === 'none') return;
+    const controls = Array.from(modal.querySelectorAll('button:not(:disabled), input:not(:disabled)'));
+    if (!controls.length) return;
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
 });

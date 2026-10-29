@@ -1,6 +1,8 @@
 # Selective Conformal AI Architecture for Tuberculosis Triage
 ### Multi-Cohort Development, BioMedCLIP Distillation, and Independent External Stress-Testing
 
+> **Audit remediation branch (28 October 2026):** this working version requires clinician verification for every PWA result and does not permit autonomous patient clearance. Historical performance tables below describe earlier experiments and have not been revalidated for this policy. Recovered Kaggle artifacts reveal repeated India evaluation records and training-method discrepancies requiring reconciliation. See [audit status and verification](docs/audit/REMEDIATION_STATUS.md).
+
 [![Release: v2.1.0-workstation](https://img.shields.io/badge/Release-v2.1.0--workstation-059669.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/tag/v2.1.0-workstation)
 [![Live Workstation: Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20Workstation-Hugging%20Face%20Space-yellow.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
 [![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-32.8%20MB%20ZIP-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip)
@@ -221,3 +223,7 @@ If you utilize this safety architecture, the BioMedCLIP distillation framework, 
 ## License
 
 This project is licensed under the terms of the MIT License. See [LICENSE](LICENSE) for details.
+
+## Case workflow UI
+
+The local PWA now includes ID/EN queue review, explicit local case storage, filters, notes, and export. Run `npm start`; run `npm run test:ui` for browser checks. See [UI guide and verification](docs/audit/UI_REDESIGN.md). The Space UI overlay is packaged separately from the source branch; deployment is verified separately.
