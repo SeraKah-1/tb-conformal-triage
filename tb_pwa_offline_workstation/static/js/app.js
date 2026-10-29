@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.1.0-workflow').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.3.0-workflow').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -141,7 +141,46 @@ function returnToBatchMode() {
     switchMode('batch');
 }
 
+// Invalidate the exact pending file without cancelling an unrelated case or model task.
+function invalidateSingleRequest(file) {
+    if (selectedFile !== file) return false;
+    ++singleSelectionVersion;
+    selectedFile = null;
+    originalImageSrc = null;
+    currentResultData = null;
+    const input = document.getElementById('file-input');
+    if (input) input.value = '';
+    const status = document.getElementById('file-status');
+    if (status) status.style.display = 'none';
+    const submit = document.getElementById('btn-submit');
+    if (submit) submit.disabled = true;
+    if (document.body.dataset.workspaceView === 'single') {
+        const results = document.getElementById('results-display');
+        if (results) results.style.display = 'none';
+        const empty = document.getElementById('empty-state');
+        if (empty) empty.style.display = 'block';
+        showInputPreview(null);
+    }
+    return true;
+}
+
+function showInputPreview(source) {
+    const preview = document.getElementById('input-preview');
+    const empty = document.getElementById('empty-state');
+    if (!preview || !empty) return;
+    preview.hidden = !source;
+    preview.src = source || '';
+    empty.classList.toggle('has-preview', Boolean(source));
+    const t = I18N_DICT[currentLang];
+    const title = document.getElementById('txt-empty-title');
+    const desc = document.getElementById('txt-empty-desc');
+    if (title) title.textContent = source ? t.inputReady : t.emptyTitle;
+    if (desc) desc.textContent = source ? t.inputReadyDesc : t.emptyDesc;
+}
+
 function resetSingleTriage() {
+    if (window.caseWorkspace?.clearSingle?.() === false) return;
+    showInputPreview(null);
     ++singleSelectionVersion;
     selectedFile = null;
     originalImageSrc = null;
@@ -212,7 +251,8 @@ function acceptDisclaimer() {
     safeStorage.setItem('tb_triage_disclaimer_accepted', 'true');
     const modal = document.getElementById('disclaimer-modal');
     if (modal) modal.style.display = 'none';
-    document.getElementById('case-workspace')?.focus();
+    const target = window.caseWorkspace?.state.view === 'single' ? 'drop-zone' : 'case-workspace';
+    document.getElementById(target)?.focus();
 }
 
 // 4. System Status Indicator (100% Offline WASM Air-Gapped)
@@ -226,8 +266,8 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.1.0-workflow');
-            const required = ['./index.html','./static/js/cases.js','./static/js/app.js','./static/js/i18n.js',
+            const cache = await caches.open('tb-conformal-offline-v4.3.0-workflow');
+            const required = ['./index.html','./static/js/cases.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
                 './models/tb_conformal_distilled_v11_cam.onnx'];
@@ -251,6 +291,9 @@ function initSingleFileHandlers() {
     const fileInput = document.getElementById('file-input');
 
     if (dropZone) {
+        dropZone.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInput?.click(); }
+        });
         dropZone.addEventListener('dragover', function(e) {
             e.preventDefault();
             dropZone.classList.add('drag-over');
@@ -282,6 +325,8 @@ function handleSingleFile(file) {
         alert(currentLang === 'en' ? 'Please upload a valid radiograph image (PNG, JPEG, WebP).' : 'Harap unggah file foto rontgen yang valid (PNG, JPEG, atau WebP).');
         return;
     }
+    if (window.caseWorkspace?.clearSingle?.() === false) return false;
+    showInputPreview(null);
     const selectionVersion = ++singleSelectionVersion;
     selectedFile = file;
     originalImageSrc = null;
@@ -318,10 +363,12 @@ function handleSingleFile(file) {
     reader.onload = function(e) {
         if (selectionVersion !== singleSelectionVersion || selectedFile !== file) return;
         originalImageSrc = e.target.result;
+        showInputPreview(originalImageSrc);
         const imgBase = document.getElementById('img-base');
         if (imgBase) imgBase.src = originalImageSrc;
     };
     reader.readAsDataURL(file);
+    return true;
 }
 
 function captureCamera() {
@@ -344,7 +391,7 @@ async function loadBenchmarkCase(sampleName) {
         const blob = await resp.blob();
         if (selectionVersion !== singleSelectionVersion) return;
         const file = new File([blob], sampleName, { type: blob.type || 'image/png' });
-        handleSingleFile(file);
+        if (handleSingleFile(file) === false) { setLoadingState(false); return; }
         await submitSingleTriage();
     } catch (err) {
         if (selectionVersion !== singleSelectionVersion) return;
@@ -1138,6 +1185,9 @@ async function submitSingleTriage() {
     const selectionVersion = singleSelectionVersion;
     const isCurrent = () => selectionVersion === singleSelectionVersion && selectedFile === file;
     isSubmitting = true;
+    currentResultData = null;
+    const reviewTools = document.getElementById('case-detail-tools');
+    if (reviewTools) reviewTools.hidden = true;
     let requestSource = null;
     setLoadingState(true);
     try {
@@ -1161,6 +1211,7 @@ async function submitSingleTriage() {
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if (!iqaResult.quality_passed) {
             renderRejectionResults(file.name, iqaResult, source);
+            window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH', (iqaResult.warnings || []).join('; '), iqaResult, 0));
             return;
         }
         await getOrtSession();
@@ -1169,9 +1220,11 @@ async function submitSingleTriage() {
         if (!isCurrent()) return;
         data.source_image = source;
         renderSingleResults(data);
+        window.caseWorkspace?.captureSingle?.(file, data);
     } catch (err) {
         if (!isCurrent()) return;
         renderRuntimeError(err.message || 'AI execution error', requestSource);
+        window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, 'ERROR_RUNTIME', err.message || 'Processing failed', null, 0));
     } finally {
         isSubmitting = false;
         setLoadingState(false);
@@ -1222,6 +1275,14 @@ function setLoadingState(isLoading, titleText, subText) {
         if (loadingBox) loadingBox.style.display = 'block';
     } else {
         if (loadingBox) loadingBox.style.display = 'none';
+        if (emptyBox && resultsBox && resultsBox.style.display === 'none' && !currentResultData) {
+            emptyBox.style.display = 'block';
+            const t = I18N_DICT[currentLang];
+            const title = document.getElementById('txt-empty-title');
+            const desc = document.getElementById('txt-empty-desc');
+            if (title) title.textContent = t.emptyTitle;
+            if (desc) desc.textContent = t.emptyDesc;
+        }
     }
 }
 
@@ -1364,6 +1425,7 @@ let activeTriageAction = null;
 let activeTriageWarning = null;
 
 function refreshActiveIdiograph() {
+    if (isSubmitting) return;
     if (currentResultData) {
         if (currentResultData.is_rejection) {
             renderRejectionResults(currentResultData.filename, currentResultData.iqa_report, currentResultData.source_image);

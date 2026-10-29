@@ -226,4 +226,4 @@ This project is licensed under the terms of the MIT License. See [LICENSE](LICEN
 
 ## Case workflow UI
 
-The local PWA now includes ID/EN queue review, explicit local case storage, filters, notes, and export. Run `npm start`; run `npm run test:ui` for browser checks. See [UI guide and verification](docs/audit/UI_REDESIGN.md). The Space UI overlay is packaged separately from the source branch; deployment is verified separately.
+The local PWA opens directly to single-image input and results, with ID/EN and separate Batch, Saved, and Guide menus. Local storage, filters, notes, and export remain available. Run `npm start`; run `npm run test:ui` for browser checks. See [UI guide and verification](docs/audit/UI_REDESIGN.md). The Space UI overlay is packaged separately from the source branch; deployment is verified separately.

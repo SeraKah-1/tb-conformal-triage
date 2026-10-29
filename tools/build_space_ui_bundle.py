@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'tb_pwa_offline_workstation'
 FILES = ['assets/brand.svg', 'assets/brand-192.png', 'assets/brand-512.png', 'index.html', 'manifest.json', 'sw.js', 'static/css/workstation.css',
          'static/js/app.js', 'static/js/i18n.js', 'static/js/cases.js',
-         'static/js/slider.js', 'static/js/ood_calibration.js']
+         'static/js/slider.js', 'static/js/ood_calibration.js', 'static/js/archive.js', 'static/js/settings.js']
 
 
 def build(output):

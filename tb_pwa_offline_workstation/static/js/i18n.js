@@ -234,6 +234,9 @@ const I18N_DICT = {
     }
 };
 
+Object.assign(I18N_DICT.en, {inputReady:'Ready',inputReadyDesc:'Check the image, then select Process.',btnSingleReset:'New'});
+Object.assign(I18N_DICT.id, {inputReady:'Siap diproses',inputReadyDesc:'Periksa gambar, lalu pilih Proses.',btnSingleReset:'Baru'});
+
 let currentLang = 'id';
 try {
     const storedLanguage = localStorage.getItem('tb_ui_language');
@@ -320,9 +323,10 @@ function applyLanguage(lang) {
         document.querySelectorAll(selector).forEach(element => { element.textContent = value; });
     };
     // Static elements that previously had no translation hook.
-    translate('[data-case-view="queue"]', t.queue);
-    translate('[data-case-view="saved"]', t.saved);
-    translate('[data-case-view="guide"]', t.guide);
+    translate('[data-case-view="single"] [data-case-i18n]', currentLang === 'id' ? 'Periksa' : 'Check');
+    translate('[data-case-view="queue"] [data-case-i18n]', 'Batch');
+    translate('[data-case-view="saved"] [data-case-i18n]', t.saved);
+    translate('[data-case-view="guide"] [data-case-i18n]', t.guide);
     translate('#txt-print', t.print);
     translate('#txt-theme', typeof currentTheme !== 'undefined' && currentTheme === 'dark' ? t.themeLight : t.themeDark);
     translate('#txt-install-title', t.install);
@@ -354,5 +358,6 @@ function applyLanguage(lang) {
         if (Object.hasOwn(t, key)) element.textContent = t[key];
     });
     if (typeof refreshActiveIdiograph === 'function') refreshActiveIdiograph();
+    if (typeof selectedFile !== 'undefined' && selectedFile && typeof currentResultData !== 'undefined' && !currentResultData && !isSubmitting && typeof originalImageSrc !== 'undefined' && originalImageSrc && typeof showInputPreview === 'function') showInputPreview(originalImageSrc);
     window.dispatchEvent(new CustomEvent('tb-language-change', {detail: {language: currentLang}}));
 }

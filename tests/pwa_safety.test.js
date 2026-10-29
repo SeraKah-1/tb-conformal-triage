@@ -8,7 +8,7 @@ const app = fs.readFileSync(path.join(__dirname, '../tb_pwa_offline_workstation/
 function setup() {
  const elements = new Map();
  const element = id => {
-  if (!elements.has(id)) elements.set(id, {style:{}, classList:{add(){},remove(){}},setAttribute(){},src:'',innerText:'',innerHTML:''});
+  if (!elements.has(id)) elements.set(id, {style:{}, classList:{add(){},remove(){},toggle(){}},setAttribute(){},src:'',innerText:'',innerHTML:''});
   return elements.get(id);
  };
  const readers=[];

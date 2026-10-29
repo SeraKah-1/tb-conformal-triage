@@ -39,16 +39,16 @@ def main():
             check('offline readiness requires cached assets', 'Offline' in page.locator('#txt-status').inner_text())
             check('unrelated cache preserved', page.evaluate("caches.has('other-app')"))
             page.evaluate("fetch('/requirements.txt').catch(()=>{})")
-            check('non-application resources not cached', page.evaluate("caches.open('tb-conformal-offline-v4.1.0-workflow').then(c=>c.keys()).then(a=>!a.some(r=>r.url.includes('requirements.txt')))"))
+            check('non-application resources not cached', page.evaluate("caches.open('tb-conformal-offline-v4.3.0-workflow').then(c=>c.keys()).then(a=>!a.some(r=>r.url.includes('requirements.txt')))"))
             context.new_cdp_session(page).send('Network.clearBrowserCache')
             context.set_offline(True)
             page.reload(); page.wait_for_function('window.caseWorkspace && !caseWorkspace.state.loadingArchives')
-            check('new workflow loads on first offline reload', page.locator('#case-process').inner_text() == 'Proses')
+            check('new workflow loads on first offline reload', page.locator('#case-process').inner_text() == 'Proses daftar')
             page.evaluate('applyLanguage("en")')
-            check('English available offline', page.locator('#case-process').inner_text() == 'Process')
+            check('English available offline', page.locator('#case-process').inner_text() == 'Process shown')
             check('no automatic model session', page.evaluate('ortSession===null'))
             page.evaluate('''async()=>{
-                const c=await caches.open('tb-conformal-offline-v4.1.0-workflow');
+                const c=await caches.open('tb-conformal-offline-v4.3.0-workflow');
                 await c.delete(new URL('./static/js/cases.js',document.baseURI).href);
                 await initSystemStatus();
             }''')

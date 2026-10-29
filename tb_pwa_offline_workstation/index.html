@@ -40,9 +40,9 @@
     <link rel="icon" type="image/svg+xml" href="./assets/brand.svg">
     <meta name="theme-color" content="#faf9f6">
     <!-- Clean Modular CSS -->
-    <link rel="stylesheet" href="./static/css/workstation.css?v=4.1.0-workflow">
+    <link rel="stylesheet" href="./static/css/workstation.css?v=4.3.0-workflow">
 </head>
-<body>
+<body data-workspace-view="single">
     <a class="skip-link" href="#case-workspace">Skip to content</a>
     <!-- Clinical Decision Support Notice & Disclaimer Modal -->
     <div id="disclaimer-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="txt-modal-title">
@@ -98,6 +98,7 @@
                 <button class="btn-icon" onclick="toggleLanguage()" aria-label="Bahasa / Language">
                     <span style="font-weight: 700;" id="txt-lang-badge">ID</span>
                 </button>
+                <button id="btn-settings" class="btn-icon" type="button" onclick="window.caseSettings.open()" aria-haspopup="dialog"><span data-settings-label>Pengaturan</span></button>
                 <button class="btn-icon" onclick="toggleTheme()">
                     <span id="txt-theme">Tema</span>
                 </button>
@@ -109,9 +110,10 @@
 
         <div class="workspace-heading">
             <nav class="case-nav" aria-label="Workspace">
-                <button type="button" data-case-view="queue" aria-current="page" data-case-i18n="queue">Antrean</button>
-                <button type="button" data-case-view="saved" data-case-i18n="saved">Tersimpan</button>
-                <button type="button" data-case-view="guide" data-case-i18n="guide">Panduan</button>
+                <button type="button" data-case-view="single" aria-current="page"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8m-4-4v8"/></svg><span data-case-i18n="screen">Periksa</span></button>
+                <button type="button" data-case-view="queue"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="7" width="14" height="14" rx="2"/><path d="M17 7V3H3v14h4"/></svg><span data-case-i18n="batch">Batch</span></button>
+                <button type="button" data-case-view="saved"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3h12l4 4v14H3V3h2Zm2 0v7h10V3M7 21v-7h10v7"/></svg><span data-case-i18n="saved">Tersimpan</span></button>
+                <button type="button" data-case-view="guide"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg><span data-case-i18n="guide">Panduan</span></button>
             </nav>
             <div id="pwa-install-banner" class="install-control">
                 <button id="btn-hero-install" class="btn-icon" onclick="triggerPWAInstall()">
@@ -124,9 +126,7 @@
         <div class="review-workspace">
         <main id="case-workspace" tabindex="-1" aria-label="Cases"></main>
         <div class="case-inspection">
-        <section id="case-detail-tools" aria-label="Review"></section>
-
-        <details id="processing-workspace" class="processing-workspace">
+        <details id="processing-workspace" class="processing-workspace" open>
             <summary data-case-i18n="process">Proses</summary>
         <!-- Mode Navigation Tabs -->
         <div class="mode-tabs">
@@ -150,7 +150,7 @@
                 </h3>
                 <p class="card-desc" id="txt-upload-desc">Mendukung file foto rontgen JPG atau PNG. Kecerahan dan kontras gambar disesuaikan secara otomatis.</p>
 
-                <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Tambah gambar" onclick="document.getElementById('file-input').click()">
                     <div class="drop-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </div>
@@ -177,8 +177,8 @@
                 </button>
 
                 <!-- Verified Benchmark Samples -->
-                <div class="samples-section">
-                    <div class="samples-title" id="txt-samples-title">Contoh gambar</div>
+                <details class="samples-section">
+                    <summary class="samples-title" id="txt-samples-title">Contoh gambar</summary>
                     <div class="samples-grid">
                         <button class="sample-btn" onclick="loadBenchmarkCase('india_solan_active_tb.png')">
                             <span id="sample-1-name">Contoh TB</span>
@@ -193,13 +193,14 @@
                             <span style="color: var(--color-referral); font-weight: 700;">TB Apikal</span>
                         </button>
                     </div>
-                </div>
+                </details>
             </div>
 
             <!-- Right Column: Results & Viewer -->
             <div class="panel-card">
                 <!-- Empty State -->
                 <div id="empty-state" class="empty-state-box">
+                    <img id="input-preview" hidden alt="" decoding="async">
                     <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -417,6 +418,7 @@
         </div>
 
         </details>
+        <section id="case-detail-tools" aria-label="Review" hidden></section>
         </div>
         </div>
         <section id="case-guide" hidden aria-label="Guide"></section>
@@ -424,11 +426,14 @@
     </div>
 
     <!-- Modular Scripts with Cache Busting -->
-    <script src="./static/js/i18n.js?v=4.1.0-workflow"></script>
-    <script src="./static/js/slider.js?v=4.1.0-workflow"></script>
-    <script src="./static/js/ood_calibration.js?v=4.1.0-workflow"></script>
-    <script src="./static/js/app.js?v=4.1.0-workflow"></script>
-    <script src="./static/js/cases.js?v=4.1.0-workflow"></script>
+    <script src="./static/js/i18n.js?v=4.3.0-workflow"></script>
+    <script src="./static/js/slider.js?v=4.3.0-workflow"></script>
+    <script src="./static/js/ood_calibration.js?v=4.3.0-workflow"></script>
+    <script src="./static/js/app.js?v=4.3.0-workflow"></script>
+    <script src="./static/js/cases.js?v=4.3.0-workflow"></script>
+
+    <script src="./static/js/archive.js?v=4.3.0-workflow"></script>
+    <script src="./static/js/settings.js?v=4.3.0-workflow"></script>
 
     <!-- Legacy cache cleanup is scoped and owned by the service worker. -->
 </body>
