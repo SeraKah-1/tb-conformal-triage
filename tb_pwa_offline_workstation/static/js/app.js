@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.6.0-evidence').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.6.1-evidence').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +266,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.6.0-evidence');
+            const cache = await caches.open('tb-conformal-offline-v4.6.1-evidence');
             const required = ['./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -866,7 +866,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     if (isInvalidAnatomyDoc) {
         rejectCode = 'REJECT_INVALID_ANATOMY_DOCUMENT';
         qualityPassed = false;
-        advisoryWarnings.push('Non-radiograph payload: Blank page or text document detected.');
+        advisoryWarnings.push('Extreme-intensity blank check failed; anatomy and text were not classified.');
     }
 
     if (isInverted) {

@@ -109,3 +109,5 @@ Model v11, temperature, quantile, jarak, dan ambang numerik tidak berubah. Refer
 Banner utama menampilkan skor tinggi/rendah/intermediate dengan alasan review yang sebenarnya. Label Normal pada kelas statistik ditampilkan Non-TB agar tidak mengesankan sehat menyeluruh. Keterangan IQA dibatasi sebagai heuristik teknis, bukan klasifikasi anatomi atau mutu diagnostik. Auto-polarity dijelaskan sebagai heuristik, bukan pembacaan metadata DICOM.
 
 Ekspor menambahkan kolom ke-16 Alasan review tanpa menggeser posisi kolom sebelumnya; angka skor tetap numerik pada Excel. Action dan hasil arsip lama tidak ditulis ulang. Pipeline kandidat baru dan kontrak preprocessing diteliti terpisah; memasukkan helper kandidat ke repo tidak mengaktifkan model baru.
+
+UI4.6.1 corrects the blank-intensity gate label to “Gambar kosong / Blank image”. It does not classify anatomy or text and no numeric IQA criteria changed.

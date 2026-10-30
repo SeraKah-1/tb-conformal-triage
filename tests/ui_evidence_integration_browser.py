@@ -51,7 +51,7 @@ try:
         ck('rejected image disables old heatmap controls',page.locator('#btn-mode-heat').is_disabled() and page.locator('#btn-mode-split').is_disabled())
         ck('rejected image does not show stale evidence or percentages',not page.locator('#result-evidence').is_visible() and page.locator('#val-prob-tb').inner_text()=='N/A')
         page.evaluate('toggleLanguage()')
-        ck('rejection translation keeps technical state without old evidence',page.locator('#action-title').inner_text()=='Bukan rontgen' and not page.locator('#result-evidence').is_visible())
+        ck('rejection translation keeps technical state without old evidence',page.locator('#action-title').inner_text()=='Gambar kosong' and not page.locator('#result-evidence').is_visible())
         ck('no model inference was initialized',page.evaluate('ortSession===null'))
         ck('no browser errors',not errors);browser.close()
     print(json.dumps({'passed':len(checks),'checks':checks},indent=2))
