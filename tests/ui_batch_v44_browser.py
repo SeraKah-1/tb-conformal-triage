@@ -33,11 +33,11 @@ try:
         page.evaluate(r'''() => {const r=caseWorkspace.state.records[0];r.filename='=SUM(1,2).png';r.notes='Baris satu, koma\nBaris dua: α & <teks>';r.state='complete';r.result={filename:r.filename,triage_action:'AUTO_FLAG_TB_URGENT',probability_tb:.9,probability_normal:.1,conformal_details:{conformal_set:['TB']},iqa_report:{quality_passed:true},ood_report:{available:true,is_ood:false,mahalanobis_distance:1,threshold:3},hirescam_heatmap_base64:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jUVkAAAAASUVORK5CYII=',allow_autonomous_release:false};caseWorkspace.setLanguage('id');}''')
         with page.expect_download() as down:page.locator('#case-export').click()
         ck('Excel filename',down.value.suggested_filename.endswith('.xlsx'));book=load_workbook(open(down.value.path(),'rb'));sheet=book.active
-        ck('Excel has 1000 rows and consistent columns',sheet.max_row==1001 and sheet.max_column==15)
+        ck('Excel has 1000 rows and consistent columns',sheet.max_row==1001 and sheet.max_column==16)
         values=list(sheet.values);idx=next(i for i,r in enumerate(values) if r[1]=='=SUM(1,2).png');row=values[idx]
         ck('formula-like filename stored as text',sheet.cell(idx+1,2).data_type=='s')
         ck('Unicode multiline notes intact',row[13]=='Baris satu, koma\nBaris dua: α & <teks>')
-        ck('score formatted as percent',row[8]==.9 and sheet.cell(idx+1,9).number_format=='0.00%');ck('freeze header and filter',sheet.freeze_panes=='A2' and sheet.auto_filter.ref=='A1:O1001')
+        ck('score formatted as percent',row[8]==.9 and sheet.cell(idx+1,9).number_format=='0.00%');ck('freeze header and filter',sheet.freeze_panes=='A2' and sheet.auto_filter.ref=='A1:P1001')
         ck('zip CRC valid',zipfile.ZipFile(down.value.path()).testzip() is None)
         page.locator('[data-heatmap-id]').click();ck('Heatmap opens corresponding result',page.evaluate('caseWorkspace.state.activeId===caseWorkspace.state.records[0].id') and page.locator('#results-display').is_visible());ck('heatmap uses stored image',page.locator('#img-heat').get_attribute('src').startswith('data:image/png'));ck('IQA pass is green',page.locator('[data-mechanism=IQA]').get_attribute('data-tone')=='success')
         page.locator('#case-detail-tools').get_by_role('button',name='Kembali',exact=True).click();ck('Back returns to list and retains selection',page.evaluate('caseWorkspace.state.activeId===null&&caseWorkspace.state.selectedIds.length===1000'))

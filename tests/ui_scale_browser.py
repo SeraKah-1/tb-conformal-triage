@@ -18,7 +18,7 @@ try:
   page=c.new_page();page.add_init_script("localStorage.setItem('tb_triage_disclaimer_accepted','true')");page.goto(f'http://127.0.0.1:{port}');page.wait_for_function('window.caseWorkspace && !caseWorkspace.state.loadingArchives')
   page.evaluate('''()=>{
    caseWorkspace.addFiles(Array.from({length:1001},(_,i)=>new File(['x'],`image-${String(i).padStart(4,'0')}.png`,{type:'image/png'})));
-   caseWorkspace.state.records.forEach((r,i)=>{r.state='complete';r.saved=true;r.savedRevision=r.revision;r.result={filename:r.filename,triage_action:i===1000?'REJECT_CORRUPT_IMAGE':'REFER_AMBIGUOUS_TO_DOCTOR',probability_tb:.1,probability_normal:.9,conformal_details:{conformal_set:i>=800&&i<1000?['Normal','TB']:i>=600&&i<800?[]:['Normal'],safety_interlock_engaged:true},ood_report:{available:!(i>=400&&i<600),is_ood:i>=200&&i<400,mahalanobis_distance:1,threshold:3},iqa_report:{quality_passed:true,has_quality_advisory:i%17===0},inference_latency_ms:1};});
+   caseWorkspace.state.records.forEach((r,i)=>{r.state='complete';r.saved=true;r.savedRevision=r.revision;r.result={filename:r.filename,triage_action:i===1000?'REJECT_CORRUPT_IMAGE':'REFER_AMBIGUOUS_TO_DOCTOR',probability_tb:.1,probability_normal:.9,conformal_details:{conformal_set:i>=800&&i<1000?['Normal','TB']:i>=600&&i<800?[]:['Normal'],safety_interlock_engaged:true},ood_report:{available:!(i>=400&&i<600),is_ood:i>=200&&i<400,mahalanobis_distance:i>=200&&i<400?4:1,threshold:3,reference_status:'verified'},iqa_report:{quality_passed:true,has_quality_advisory:i%17===0},inference_latency_ms:1};});
    caseWorkspace.setLanguage('id');
   }''')
   ck('1001cases render only50rows',page.locator('.case-row').count()==50)
@@ -28,7 +28,7 @@ try:
   ck('200multiple-label sets counted',page.locator('[data-filter=conformalAmbiguous] strong').inner_text()=='200')
   ck('200empty sets counted',page.locator('[data-filter=conformalEmpty] strong').inner_text()=='200')
   page.evaluate('caseWorkspace.open(caseWorkspace.state.records[49].id)')
-  ck('IQA badge derives actual pass',page.locator('[data-mechanism=IQA] strong').inner_text()=='Lolos')
+  ck('IQA badge derives actual pass',page.locator('[data-mechanism=IQA] strong').inner_text()=='Teknis lolos')
   ck('OOD badge derives actual within-reference',page.locator('[data-mechanism=OOD] strong').inner_text()=='Dalam referensi')
   ck('conformal badge derives singleton',page.locator('[data-mechanism=Conformal] strong').inner_text()=='Label tunggal')
   page.locator('#case-detail-tools button').filter(has_text='Berikutnya').click()

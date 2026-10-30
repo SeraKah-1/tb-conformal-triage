@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.5.0-progress').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.6.0-evidence').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,8 +266,8 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.5.0-progress');
-            const required = ['./index.html','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
+            const cache = await caches.open('tb-conformal-offline-v4.6.0-evidence');
+            const required = ['./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
                 './models/tb_conformal_distilled_v11_cam.onnx'];
@@ -711,7 +711,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     const dynamicRange = p99 - p1;
     const isSufficientContrast = dynamicRange >= 35.0;
 
-    // Modality / Anatomy Guard (True non-radiograph blank document / empty sensor)
+    // Extreme-intensity blank guard; this is not a modality/anatomy classifier.
     const whiteRatio = countWhite / totalPixels;
     const blackRatio = countBlack / totalPixels;
     const isInvalidAnatomyDoc = (whiteRatio > 0.90) || (blackRatio > 0.96) || (blackRatio > 0.88 && dynamicRange < 25.0);
@@ -834,7 +834,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     }
     const isElevatedCompression = blockinessScore > 1.70;
 
-    // SOTA Clinical Pre-Analytic Advisories (Informative Flagging: do NOT abort model inference)
+    // Technical quality advisories. These heuristics do not establish diagnostic image quality.
     const advisoryWarnings = [];
     let hasQualityAdvisory = false;
 
@@ -859,7 +859,7 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
         advisoryWarnings.push('Elevated compression artifacts (Blockiness ' + blockinessScore.toFixed(2) + ' > 1.70). Interpreted under noise guard.');
     }
 
-    // Hard Technical Abort only for True Physical/Modality Corruptions
+    // Hard abort for declared extreme-intensity blank conditions.
     let rejectCode = null;
     let qualityPassed = true;
 
@@ -870,10 +870,14 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     }
 
     if (isInverted) {
-        advisoryWarnings.push('Photometric polarity inverted (MONOCHROME1). Auto-correction active.');
+        advisoryWarnings.push('Polarity heuristic: possible inversion. Automatic correction applied; DICOM polarity was not verified.');
     }
 
     return {
+        contract_version: 'legacy-browser-iqa-technical-v1',
+        anatomy_verified: false,
+        diagnostic_quality_verified: false,
+        polarity_source: 'corner-intensity-heuristic',
         aspect_ratio: parseFloat(ar.toFixed(3)),
         is_valid_aspect_ratio: isValidAr,
         resolution: origW + 'x' + origH,
@@ -1095,7 +1099,11 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress)
         distance_to_tb: d1,
         threshold: thresholdDiag,
         is_ood: oodAvailable ? isOod : null,
-        warning: oodWarning
+        warning: oodWarning,
+        reference_status: 'legacy_unverified',
+        reference_id: 'v11-diagonal-1024-legacy',
+        runtime_model_sha256: MODEL_SHA256,
+        runtime_preprocessing_id: 'legacy-browser-float-window512-v11'
     };
 
     const T = 2.1161616;
@@ -1166,7 +1174,10 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress)
             conformal_set: conformalSet,
             quantile_q0_normal: q0,
             quantile_q1_tb: q1,
-            nominal_coverage_guarantee: '95% nominal target; requires exchangeability',
+            nominal_coverage_guarantee: 'Legacy calibration; finite-sample coverage not verified',
+            calibration_status: 'legacy_unverified',
+            runtime_model_sha256: MODEL_SHA256,
+            runtime_preprocessing_id: 'legacy-browser-float-window512-v11',
             policy_version: 'assistive-review-v1',
             clinical_action_code: triageAction,
             safety_interlock_engaged: safetyInterlock
@@ -1241,6 +1252,9 @@ async function submitSingleTriage() {
 }
 
 function renderRuntimeError(warning, sourceImage = null) {
+    const evidencePanel=document.getElementById('result-evidence');if(evidencePanel)evidencePanel.hidden=true;
+    const heatNotice=document.getElementById('case-heatmap-notice');if(heatNotice)heatNotice.hidden=true;
+    for(const id of ['btn-mode-heat','btn-mode-split']){const control=document.getElementById(id);if(control)control.disabled=true;}
     currentResultData = null;
     const results = document.getElementById('results-display');
     const empty = document.getElementById('empty-state');
@@ -1301,10 +1315,10 @@ function renderSingleResults(data) {
     const ood = data?.ood_report;
     const invalidOod = ood?.available === true && (!Number.isFinite(ood.mahalanobis_distance)
         || ood.mahalanobis_distance < 0 || !Number.isFinite(ood.threshold) || ood.threshold <= 0
-        || typeof ood.is_ood !== 'boolean');
+        || typeof ood.is_ood !== 'boolean' || ood.is_ood !== (ood.mahalanobis_distance > ood.threshold));
     if (!data || !Number.isFinite(data.probability_tb) || !Number.isFinite(data.probability_normal)
         || data.probability_tb < 0 || data.probability_tb > 1 || data.probability_normal < 0
-        || data.probability_normal > 1 || !Array.isArray(data.conformal_details?.conformal_set) || invalidOod) {
+        || data.probability_normal > 1 || Math.abs(data.probability_tb + data.probability_normal - 1)>1e-6 || !Array.isArray(data.conformal_details?.conformal_set) || invalidOod) {
         renderRuntimeError(currentLang === 'en' ? 'Result data is incomplete. Review the source image.' : 'Data hasil tidak lengkap. Tinjau gambar asli.', data?.source_image || null);
         return;
     }
@@ -1315,14 +1329,12 @@ function renderSingleResults(data) {
     if (emptyBox) emptyBox.style.display = 'none';
     if (resultsBox) resultsBox.style.display = 'block';
 
-    const isOod = Boolean(data.ood_report && data.ood_report.is_ood);
+    const presentationEvidence=window.caseEvidence?.derive(data);
+    const isOod = presentationEvidence ? presentationEvidence.ood_state==='outside' : Boolean(data.ood_report?.available===true && data.ood_report.is_ood===true && Number.isFinite(data.ood_report.mahalanobis_distance) && Number.isFinite(data.ood_report.threshold) && data.ood_report.mahalanobis_distance>data.ood_report.threshold);
 
     // 1. Idiograph & Action Banner
     renderIdiograph(data.triage_action, data.warning, isOod, null, data.ood_report);
-    if (data.iqa_report?.warnings?.length) {
-        const desc = document.getElementById('action-desc');
-        if (desc) desc.textContent += currentLang === 'en' ? ' Image quality warnings are present. Review the original image.' : 'Ada peringatan kualitas gambar. Tinjau gambar asli.';
-    }
+    renderEvidenceBanner(data);
 
     // 2. Images in Comparison Slider
     const imgBase = document.getElementById('img-base');
@@ -1365,7 +1377,7 @@ function renderSingleResults(data) {
     const metOod = document.getElementById('met-ood');
     const metLat = document.getElementById('met-lat');
 
-    if (metSet) metSet.innerText = '{' + data.conformal_details.conformal_set.join(', ') + '}';
+    if (metSet) metSet.innerText = presentationEvidence?.canonical_set===null ? (currentLang==='en'?'Unavailable':'Tidak tersedia') : '{' + (presentationEvidence?.canonical_set ? presentationEvidence.canonical_set.map(label=>label==='non_tb'?'Non-TB':'TB') : data.conformal_details.conformal_set.map(label=>label==='Normal'?'Non-TB':label==='Tuberculosis'?'TB':label)).join(', ') + '}';
     if (metAction) {
         metAction.innerText = data.triage_action;
         metAction.style.color = 'var(--text-main)';
@@ -1375,7 +1387,7 @@ function renderSingleResults(data) {
         if (isOod) {
             metOod.innerText = I18N_DICT[currentLang].oodOutside + ' (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ' > ' + data.ood_report.threshold + ')';
             metOod.style.color = 'var(--color-referral)';
-        } else if (data.ood_report && data.ood_report.available === true) {
+        } else if (presentationEvidence ? presentationEvidence.ood_state==='within' : data.ood_report && data.ood_report.available === true) {
             metOod.innerText = I18N_DICT[currentLang].oodWithin + ' (D=' + data.ood_report.mahalanobis_distance.toFixed(2) + ')';
             metOod.style.color = 'var(--color-normal)';
         } else {
@@ -1388,6 +1400,9 @@ function renderSingleResults(data) {
 }
 
 function renderRejectionResults(filename, iqa, sourceImage = null) {
+    const evidencePanel=document.getElementById('result-evidence');if(evidencePanel)evidencePanel.hidden=true;
+    const heatNotice=document.getElementById('case-heatmap-notice');if(heatNotice)heatNotice.hidden=true;
+    for(const id of ['btn-mode-heat','btn-mode-split']){const control=document.getElementById(id);if(control)control.disabled=true;}
     currentResultData = { filename: filename, is_rejection: true, iqa_report: iqa, source_image: sourceImage };
 
     const emptyBox = document.getElementById('empty-state');
@@ -1509,7 +1524,7 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
         return;
     }
 
-    // Case 2: 4-Tier SOTA Clinical AI Decision Engine
+    // Legacy compatibility routing. The evidence projection below displays independent axes.
     if (action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
         banner.classList.add('action-normal');
         if (badge) badge.innerText = currentLang === 'id' ? 'Review wajib' : 'Review required';
@@ -1551,6 +1566,25 @@ function renderIdiograph(action, warning, isOod = false, iqaRejectCode = null, o
             iconContainer.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
         }
     }
+}
+
+// Presentation uses evidence axes, not the legacy action as a surrogate for every reason.
+function renderEvidenceBanner(data) {
+    if(!window.caseEvidence)return;
+    const evidence=window.caseEvidence.derive(data),lang=currentLang==='en'?'en':'id';
+    const title=document.getElementById('action-title'),badge=document.getElementById('action-badge'),desc=document.getElementById('action-desc'),banner=document.getElementById('idiograph-banner');
+    const titles=lang==='en'?{high:'High score',low:'Low score',intermediate:'Intermediate score',unknown:'Score unavailable'}:{high:'Skor tinggi',low:'Skor rendah',intermediate:'Skor intermediate',unknown:'Tanpa skor'};
+    if(title)title.textContent=titles[evidence.score_band]||titles.unknown;
+    if(badge)badge.textContent=lang==='en'?'Review required':'Review wajib';
+    if(desc)desc.textContent=lang==='en'?'Model score, prediction set, technical quality and reference distance are separate findings. Clinician review is required. A non-TB score does not establish healthy lungs.':'Skor model, set prediksi, kualitas teknis, dan jarak referensi merupakan informasi terpisah. Review tenaga medis wajib. Skor non-TB tidak memastikan paru sehat.';
+    if(banner){banner.className='idiograph-banner';banner.classList.add(evidence.score_band==='high'?'action-tb':evidence.score_band==='low'&&!evidence.review_reasons.length?'action-normal':'action-referral');}
+    let panel=document.getElementById('result-evidence');
+    if(!panel){panel=document.createElement('section');panel.id='result-evidence';panel.className='result-evidence';banner?.after(panel);}
+    panel.hidden=false;panel.replaceChildren();
+    const reasons=document.createElement('div');reasons.id='result-evidence-reasons';window.caseEvidence.renderReasons(reasons,data,lang);panel.append(reasons);
+    const details=document.createElement('details'),summary=document.createElement('summary'),note=document.createElement('p');summary.textContent=lang==='en'?'Evidence':'Rincian';
+    note.textContent=lang==='en'?'IQA reports technical heuristics, not diagnostic image quality or confirmed anatomy. The live v11 OOD reference and conformal calibration are legacy artifacts without complete validation provenance. Distances and sets remain visible; no clinical coverage guarantee is asserted.':'IQA memeriksa heuristik teknis, bukan mutu diagnostik atau anatomi yang terverifikasi. Referensi OOD dan kalibrasi conformal v11 masih merupakan artefak legacy dengan provenance validasi belum lengkap. Jarak dan set tetap ditampilkan; tidak ada klaim jaminan coverage klinis.';
+    details.append(summary,note);panel.append(details);
 }
 
 // 8. Parallel Batch Screening Handlers

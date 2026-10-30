@@ -1275,3 +1275,9 @@ body[data-workspace-view="guide"] #processing-workspace { display: none !importa
 @keyframes work-spin { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .work-spinner,.case-row[data-state="processing"] .case-row-content::before { animation:none; } }
 @media print { .work-progress { display:none!important; } }
+.result-evidence { border:1px solid var(--border-color); border-radius:8px; padding:12px 15px; margin:12px 0 20px; font-size:.82rem; }
+.result-evidence details { color:var(--text-muted); margin-top:10px; }
+.result-evidence summary { cursor:pointer; }
+.result-evidence p { line-height:1.6; margin-top:8px; }
+.result-evidence ul,#case-review-reasons ul { display:flex; flex-wrap:wrap; gap:6px; padding:0; list-style:none; }
+.result-evidence li,#case-review-reasons li { padding:5px 8px; background:#fff7df; color:#775309; border-radius:5px; font-size:.78rem; }

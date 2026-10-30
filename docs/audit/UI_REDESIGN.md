@@ -98,3 +98,14 @@ Pengecatan UI diberi kesempatan sebelum komputasi; fallback timer mencegah prose
 Token pekerjaan mencegah callback lama menutup pekerjaan yang lebih baru. Reset sesi membersihkan status pekerjaan yang telah selesai; pembatalan menunggu gambar aktif lalu menghentikan antrean. Skor TB ditampilkan di setiap baris, dengan nilai presisi penuh di tooltip dan nilai numerik tetap tersedia pada Excel.
 
 Paket contoh 100 gambar berlabel healthy sengaja diambil dari bagian training proyek. Prediksi yang sama kelasnya tidak berarti nilai skornya sama. Kode menghitung skor dari logits per input dan tidak menetapkan hasil dari label/nama berkas. Pengujian dua input memakai decode nyata dan sesi ORT tiruan dengan logits berbeda untuk memeriksa pemetaan hasil serta loading; ini bukan pemeriksaan ulang akurasi 100 gambar oleh model asli. Tidak ada inferensi berat lokal atau perubahan model/ambang keputusan.
+
+
+## Evidence v4.6
+
+Skor, set conformal, pemeriksaan teknis IQA, status/jarak OOD, dan alasan review diproyeksikan sebagai atribut terpisah. Skor TB≥0,65 tetap masuk filter Skor tinggi meskipun action kompatibilitas lama adalah REFER_AMBIGUOUS_TO_DOCTOR karena OOD/advisory. Skor intermediate dengan singleton TB tidak dihitung sebagai set ganda. Probabilitas/set/metadata yang tidak valid diberi status bukti tidak lengkap; tidak ada autonomous release.
+
+Model v11, temperature, quantile, jarak, dan ambang numerik tidak berubah. Referensi OOD dan kalibrasi conformal live diberi keterangan legacy belum tervalidasi lengkap; jarak yang bisa dihitung tetap dibedakan dari validasi asal referensinya. Reference legacy bukan bukti bahwa setiap gambar OOD, sehingga tidak ditambahkan ke hitungan masalah OOD per gambar. Filter kualifikasi referensi tersedia terpisah.
+
+Banner utama menampilkan skor tinggi/rendah/intermediate dengan alasan review yang sebenarnya. Label Normal pada kelas statistik ditampilkan Non-TB agar tidak mengesankan sehat menyeluruh. Keterangan IQA dibatasi sebagai heuristik teknis, bukan klasifikasi anatomi atau mutu diagnostik. Auto-polarity dijelaskan sebagai heuristik, bukan pembacaan metadata DICOM.
+
+Ekspor menambahkan kolom ke-16 Alasan review tanpa menggeser posisi kolom sebelumnya; angka skor tetap numerik pada Excel. Action dan hasil arsip lama tidak ditulis ulang. Pipeline kandidat baru dan kontrak preprocessing diteliti terpisah; memasukkan helper kandidat ke repo tidak mengaktifkan model baru.
