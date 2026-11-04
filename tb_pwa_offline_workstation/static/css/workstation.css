@@ -1315,3 +1315,8 @@ body[data-workspace-view="guide"] #processing-workspace { display: none !importa
 .module-switch[data-enabled="false"] { background:#fef3f2; border-color:#fda29b; color:#b42318; }
 .module-switch input { accent-color:#067647; }
 .module-controls > p { flex-basis:100%; font-size:.77rem; color:var(--text-muted); }
+
+#module-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:.8rem; }
+#module-summary[data-disabled="true"] { border-color:#fda29b; color:var(--color-tb); }
+#settings-dialog #module-controls { margin-top:16px; }
+#settings-dialog .module-switch { min-height:44px; }

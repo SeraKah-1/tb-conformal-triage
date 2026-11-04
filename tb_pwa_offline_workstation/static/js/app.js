@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.8.0-style').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.8.1-settings').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +266,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.8.0-style');
+            const cache = await caches.open('tb-conformal-offline-v4.8.1-settings');
             const required = ['./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -323,10 +323,12 @@ let inputPreparationVersion=0;
 async function handleSingleFile(file) {
     const preparation=++inputPreparationVersion;
     if (file && window.dicomInput?.isDicom(file)) {
+        if(window.caseWorkspace?.clearSingle?.()===false)return false;
+        resetSingleTriage();
         ++singleSelectionVersion; selectedFile=null;
         const go=document.getElementById('btn-submit');if(go)go.disabled=true;
         try { const converted=await window.dicomInput.toPng(file);if(preparation!==inputPreparationVersion)return;file=converted.file;file.dicomMetadata=converted.metadata; }
-        catch(error){if(preparation===inputPreparationVersion)alert(error.message);return;}
+        catch(error){if(preparation===inputPreparationVersion)renderRuntimeError(error.message,null);return;}
     }
     if (!file) return;
     if (!file.type.startsWith('image/') && !file.name.match(/\.(png|jpe?g|webp)$/i)) {
@@ -1242,7 +1244,7 @@ async function submitSingleTriage() {
         if(file.dicomMetadata){iqaResult.is_inverted=false;iqaResult.polarity_source='dicom-photometric-rendered';iqaResult.warnings=(iqaResult.warnings||[]).filter(w=>!w.startsWith('Polarity heuristic:'));}
         if (!iqaResult.quality_passed) {
             feedbackStatus='attention';renderRejectionResults(file.name, iqaResult, source);
-            window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH', (iqaResult.warnings || []).join('; '), iqaResult, 0));
+            window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH', (iqaResult.warnings || []).join('; '), iqaResult, 0, modules));
             return;
         }
         report({phase:'model'});
@@ -1256,7 +1258,7 @@ async function submitSingleTriage() {
     } catch (err) {
         if (!isCurrent()) return;
         feedbackStatus='failed';renderRuntimeError(err.message || 'AI execution error', requestSource);
-        window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, 'ERROR_RUNTIME', err.message || 'Processing failed', null, 0));
+        window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, 'ERROR_RUNTIME', err.message || 'Processing failed', null, 0, modules));
     } finally {
         window.workProgress?.finish('single',{status:isCurrent()?feedbackStatus:'cancelled'},progressToken);
         isSubmitting = false;
@@ -1594,6 +1596,8 @@ function renderEvidenceBanner(data) {
     let panel=document.getElementById('result-evidence');
     if(!panel){panel=document.createElement('section');panel.id='result-evidence';panel.className='result-evidence';banner?.after(panel);}
     panel.hidden=false;panel.replaceChildren();
+    const configNote=document.createElement('p');configNote.id='result-module-config';const config=data.module_configuration;
+    configNote.textContent=(lang==='en'?'Result settings: ':'Pengaturan hasil: ')+(config&&['iqa','ood','conformal'].every(key=>typeof config[key]==='boolean')?['iqa','ood','conformal'].map(key=>(key==='conformal'?'Conformal':key.toUpperCase())+': '+(config[key]?(lang==='en'?'On':'Aktif'):(lang==='en'?'Off':'Nonaktif'))).join(' · '):(lang==='en'?'Not recorded':'Tidak tercatat'));panel.append(configNote);
     const reasons=document.createElement('div');reasons.id='result-evidence-reasons';window.caseEvidence.renderReasons(reasons,data,lang);panel.append(reasons);
     const details=document.createElement('details'),summary=document.createElement('summary'),note=document.createElement('p');summary.textContent=lang==='en'?'Evidence':'Rincian';
     note.textContent=lang==='en'?'IQA reports technical heuristics, not diagnostic image quality or confirmed anatomy. The live v11 OOD reference and conformal calibration are legacy artifacts without complete validation provenance. Distances and sets remain visible; no clinical coverage guarantee is asserted.':'IQA memeriksa heuristik teknis, bukan mutu diagnostik atau anatomi yang terverifikasi. Referensi OOD dan kalibrasi conformal v11 masih merupakan artefak legacy dengan provenance validasi belum lengkap. Jarak dan set tetap ditampilkan; tidak ada klaim jaminan coverage klinis.';
@@ -1649,8 +1653,8 @@ function queueBatchFiles(files) {
     if (startBtn) startBtn.disabled = batchFiles.length === 0;
 }
 
-function technicalBatchResult(file, action, warning, iqa, elapsed) {
-    return {
+function technicalBatchResult(file, action, warning, iqa, elapsed, capturedModules) {
+    const output = {
         filename: file.name,
         predicted_class: action === 'ERROR_RUNTIME' ? 'Error' : 'Rejected',
         probability_tb: null, probability_normal: null,
@@ -1660,12 +1664,14 @@ function technicalBatchResult(file, action, warning, iqa, elapsed) {
         warning, iqa_report: iqa || null,
         ood_report: { status: 'unavailable', available: false, mahalanobis_distance: null, threshold: null, is_ood: null },
         allow_autonomous_release: false, hirescam_heatmap_base64: null,
-        inference_latency_ms: Math.round(elapsed), execution_mode: 'IN_BROWSER_WASM'
+        inference_latency_ms: Math.round(elapsed), execution_mode: 'IN_BROWSER_WASM',
+        source_dicom: file.dicomMetadata ? {...file.dicomMetadata} : null
     };
+    return window.moduleControls ? window.moduleControls.decorate(output, capturedModules || window.moduleControls.snapshot()) : output;
 }
 
-async function processBatchItem(file,onProgress) {
-    const modules=window.moduleControls?.snapshot();
+async function processBatchItem(file,onProgress,capturedModules) {
+    const modules=capturedModules || window.moduleControls?.snapshot();
     if(onProgress)onProgress({phase:'decode'});
     const start = performance.now();
     const imgUrl = URL.createObjectURL(file);
@@ -1684,12 +1690,12 @@ async function processBatchItem(file,onProgress) {
         if(file.dicomMetadata){iqaResult.is_inverted=false;iqaResult.polarity_source='dicom-photometric-rendered';iqaResult.warnings=(iqaResult.warnings||[]).filter(w=>!w.startsWith('Polarity heuristic:'));}
         if (!iqaResult.quality_passed) {
             return technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH',
-                (iqaResult.warnings || []).join('; '), iqaResult, performance.now() - start);
+                (iqaResult.warnings || []).join('; '), iqaResult, performance.now() - start, modules);
         }
         return await runClientSideInference(file, tempImg, iqaResult,onProgress,modules);
     } catch (err) {
         return technicalBatchResult(file, decoded ? 'ERROR_RUNTIME' : 'REJECT_CORRUPT_IMAGE',
-            err.message || 'Processing failed; clinician review required.', null, performance.now() - start);
+            err.message || 'Processing failed; clinician review required.', null, performance.now() - start, modules);
     } finally {
         URL.revokeObjectURL(imgUrl);
     }

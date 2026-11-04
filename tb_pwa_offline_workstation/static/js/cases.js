@@ -234,6 +234,7 @@
     }
     async function executeRun(pending) {
         if(running || (typeof isSubmitting!=='undefined'&&isSubmitting) || (typeof isBatchRunning!=='undefined'&&isBatchRunning) || !pending.length)return;
+        const capturedModules=window.moduleControls?.snapshot();
         running=true;cancelled=false;run={id:++runSequence,total:pending.length,completed:0,failed:0,cancelled:0,skipped:0};renderList();
         const progressToken=window.workProgress?.start('batch',{phase:'decode',total:pending.length,completed:0});
         const updateProgress=extra=>window.workProgress?.update('batch',{completed:run.completed,failed:run.failed,cancelled:run.cancelled,skipped:run.skipped,...extra},progressToken);
@@ -249,7 +250,7 @@
                 try {
                     const file=r.image instanceof File?r.image:new File([r.image],r.filename,{type:r.image.type});
                     if(r.result?.source_dicom)file.dicomMetadata=r.result.source_dicom;
-                    result=await processBatchItem(file,stage=>updateProgress(stage));
+                    result=await processBatchItem(file,stage=>updateProgress(stage),capturedModules);
                 } catch(e) { /* Failure remains explicit and can only be retried on request. */ }
                 if(!records.has(r.id)){run.skipped++;updateProgress({});continue;}
                 finishResult(r,result);if(r.state==='failed')run.failed++;else run.completed++;
