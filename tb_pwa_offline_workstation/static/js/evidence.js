@@ -3,8 +3,8 @@
 (() => {
     'use strict';
     const labels={
-        en:{quality_advisory:'Quality warning',quality_rejected:'Image rejected',iqa_unavailable:'IQA unavailable',ood_outside:'Outside reference',ood_unavailable:'OOD unavailable',ood_reference_unverified:'Unverified reference',conformal_multiple:'Multiple labels',conformal_empty:'Empty set',conformal_unavailable:'Conformal unavailable',policy_intermediate:'Intermediate score',evidence_unknown:'Unknown evidence',input_unreadable:'Decode failure',processing_failure:'Processing failure',input_rejected:'Input rejected',review_required:'Review required',no_reason:'Clinician review remains required. A non-TB score does not establish healthy lungs.'},
-        id:{quality_advisory:'Peringatan kualitas',quality_rejected:'Gambar ditolak',iqa_unavailable:'IQA tidak tersedia',ood_outside:'Luar referensi',ood_unavailable:'Tanpa OOD',ood_reference_unverified:'Referensi legacy',conformal_multiple:'Label ganda',conformal_empty:'Set kosong',conformal_unavailable:'Conformal tidak tersedia',policy_intermediate:'Skor intermediate',evidence_unknown:'Bukti tidak lengkap',input_unreadable:'Gagal dibaca',processing_failure:'Proses gagal',input_rejected:'Input ditolak',review_required:'Wajib ditinjau',no_reason:'Review tenaga medis tetap wajib. Skor non-TB tidak memastikan paru sehat.'}
+        en:{iqa_disabled:'IQA off',ood_disabled:'OOD off',conformal_disabled:'Conformal off',quality_advisory:'Quality warning',quality_rejected:'Image rejected',iqa_unavailable:'IQA unavailable',ood_outside:'Outside reference',ood_unavailable:'OOD unavailable',ood_reference_unverified:'Unverified reference',conformal_multiple:'Multiple labels',conformal_empty:'Empty set',conformal_unavailable:'Conformal unavailable',policy_intermediate:'Intermediate score',evidence_unknown:'Unknown evidence',input_unreadable:'Decode failure',processing_failure:'Processing failure',input_rejected:'Input rejected',review_required:'Review required',no_reason:'Clinician review remains required. A non-TB score does not establish healthy lungs.'},
+        id:{iqa_disabled:'IQA nonaktif',ood_disabled:'OOD nonaktif',conformal_disabled:'Conformal nonaktif',quality_advisory:'Peringatan kualitas',quality_rejected:'Gambar ditolak',iqa_unavailable:'IQA tidak tersedia',ood_outside:'Luar referensi',ood_unavailable:'Tanpa OOD',ood_reference_unverified:'Referensi legacy',conformal_multiple:'Label ganda',conformal_empty:'Set kosong',conformal_unavailable:'Conformal tidak tersedia',policy_intermediate:'Skor intermediate',evidence_unknown:'Bukti tidak lengkap',input_unreadable:'Gagal dibaca',processing_failure:'Proses gagal',input_rejected:'Input ditolak',review_required:'Wajib ditinjau',no_reason:'Review tenaga medis tetap wajib. Skor non-TB tidak memastikan paru sehat.'}
     };
     const label=(key,language='id')=>(labels[language==='en'?'en':'id'][key]||key);
     const finiteProbability=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=1;
@@ -33,12 +33,15 @@
         output.score_available=finiteProbability(p)&&normalConsistent;
         if(output.score_available)output.score_tb=p;else unknown();
         const iqa=result.iqa_report;
-        if(!object(iqa)||typeof iqa.quality_passed!=='boolean'||(iqa.has_quality_advisory!==undefined&&typeof iqa.has_quality_advisory!=='boolean')||(iqa.warnings!==undefined&&(!Array.isArray(iqa.warnings)||!iqa.warnings.every(value=>typeof value==='string')))){add('iqa_unavailable');unknown();}
+        if(iqa?.disabled===true){output.iqa_state='disabled';add('iqa_disabled');}
+        else if(!object(iqa)||typeof iqa.quality_passed!=='boolean'||(iqa.has_quality_advisory!==undefined&&typeof iqa.has_quality_advisory!=='boolean')||(iqa.warnings!==undefined&&(!Array.isArray(iqa.warnings)||!iqa.warnings.every(value=>typeof value==='string')))){add('iqa_unavailable');unknown();}
         else if(!iqa.quality_passed){output.iqa_state='advisory';add('quality_advisory');}
         else if(iqa.has_quality_advisory===true){output.iqa_state='advisory';add('quality_advisory');}
         else output.iqa_state='passed';
-        const set=canonicalSet(result.conformal_details?.conformal_set);
-        if(!output.score_available||set===null){add('conformal_unavailable');unknown();}
+        const conformalDisabled=result.conformal_details?.disabled===true;
+        const set=conformalDisabled?null:canonicalSet(result.conformal_details?.conformal_set);
+        if(conformalDisabled){output.conformal_state='disabled';add('conformal_disabled');}
+        else if(!output.score_available||set===null){add('conformal_unavailable');unknown();}
         else{
             output.canonical_set=set;
             output.conformal_state=set.length===0?'empty':set.length===1?'singleton':'multiple';
@@ -46,7 +49,8 @@
         }
         const ood=result.ood_report;
         const distanceValid=object(ood)&&ood.available===true&&typeof ood.is_ood==='boolean'&&typeof ood.mahalanobis_distance==='number'&&Number.isFinite(ood.mahalanobis_distance)&&ood.mahalanobis_distance>=0&&typeof ood.threshold==='number'&&Number.isFinite(ood.threshold)&&ood.threshold>0&&ood.is_ood===(ood.mahalanobis_distance>ood.threshold);
-        if(!output.score_available||!distanceValid){add('ood_unavailable');unknown();}
+        if(ood?.disabled===true){output.ood_state='disabled';add('ood_disabled');}
+        else if(!output.score_available||!distanceValid){add('ood_unavailable');unknown();}
         else{
             output.ood_state=ood.is_ood?'outside':'within';
             const reference=ood.reference_status===undefined?'legacy_unverified':ood.reference_status;

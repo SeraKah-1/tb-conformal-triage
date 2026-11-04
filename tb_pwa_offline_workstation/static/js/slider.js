@@ -1,10 +1,11 @@
 // Split Comparison Slider Module (Hardware-Accelerated CSS clip-path)
 
-function onSliderMove(val) {
+function onSliderMove(val, force = false) {
     var divider = document.getElementById('slider-divider');
     var heatImg = document.getElementById('img-heat');
     var control = document.getElementById('slider-control');
     
+    if (control && control.disabled && !force) return;
     if (control && control.value !== val) control.value = val;
     if (divider) divider.style.left = val + '%';
     // Native CXR on left, Heatmap on right: clip heatmap from left by val%
@@ -17,6 +18,11 @@ function setSliderMode(mode) {
     var btnOrig = document.getElementById('btn-mode-orig');
     var btnHeat = document.getElementById('btn-mode-heat');
 
+    if ((mode === 'split' && btnSplit?.disabled) || (mode === 'heat' && btnHeat?.disabled)) mode = 'orig';
+    if (control) control.disabled = mode !== 'split';
+    const divider = document.getElementById('slider-divider');
+    if (divider) divider.hidden = mode !== 'split';
+
     if (btnSplit) btnSplit.classList.remove('active');
     if (btnOrig) btnOrig.classList.remove('active');
     if (btnHeat) btnHeat.classList.remove('active');
@@ -24,17 +30,17 @@ function setSliderMode(mode) {
     if (mode === 'split') {
         if (btnSplit) btnSplit.classList.add('active');
         if (control) control.value = 50;
-        onSliderMove(50);
+        onSliderMove(50, true);
     } else if (mode === 'orig') {
         // 100% Native CXR: clip heatmap completely (val = 100)
         if (btnOrig) btnOrig.classList.add('active');
         if (control) control.value = 100;
-        onSliderMove(100);
+        onSliderMove(100, true);
     } else if (mode === 'heat') {
         // 100% Heatmap: reveal heatmap completely (val = 0)
         if (btnHeat) btnHeat.classList.add('active');
         if (control) control.value = 0;
-        onSliderMove(0);
+        onSliderMove(0, true);
     }
 }
 
@@ -45,7 +51,7 @@ function initSliderInteractions() {
     var isDragging = false;
 
     function handlePointerMove(e) {
-        if (!isDragging) return;
+        if (!isDragging || document.getElementById('slider-control')?.disabled) return;
         var rect = viewport.getBoundingClientRect();
         var clientX = e.clientX;
         if (e.touches && e.touches.length > 0) {

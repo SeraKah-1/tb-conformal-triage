@@ -40,10 +40,10 @@
     <link rel="icon" type="image/svg+xml" href="./assets/brand.svg">
     <meta name="theme-color" content="#faf9f6">
     <!-- Clean Modular CSS -->
-    <link rel="stylesheet" href="./static/css/workstation.css?v=4.6.1-evidence">
+    <link rel="stylesheet" href="./static/css/workstation.css?v=4.8.0-style">
 </head>
 <body data-workspace-view="single">
-    <a class="skip-link" href="#case-workspace">Skip to content</a>
+    <a class="skip-link" href="#drop-zone">Skip to content</a>
     <!-- Clinical Decision Support Notice & Disclaimer Modal -->
     <div id="disclaimer-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="txt-modal-title">
         <div class="modal-box">
@@ -123,10 +123,11 @@
             </div>
         </div>
 
+        <div id="module-controls" class="module-panel"></div>
         <div class="review-workspace">
         <main id="case-workspace" tabindex="-1" aria-label="Cases"></main>
         <div class="case-inspection">
-        <details id="processing-workspace" class="processing-workspace" open>
+        <details id="processing-workspace" tabindex="-1" class="processing-workspace" open>
             <summary data-case-i18n="process">Proses</summary>
         <!-- Mode Navigation Tabs -->
         <div class="mode-tabs">
@@ -156,7 +157,7 @@
                     </div>
                     <div class="upload-title" id="txt-upload-title">Tambah gambar</div>
                     <div class="upload-desc" id="txt-upload-sub">PNG, JPG, atau WebP.</div>
-                    <input type="file" id="file-input" style="display: none;" accept="image/png,image/jpeg,image/webp">
+                    <input type="file" id="file-input" style="display: none;" accept="image/png,image/jpeg,image/webp,.dcm,.dicom">
                 </div>
 
                 <div id="file-status" class="file-status-box">
@@ -221,7 +222,7 @@
                 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
                 <!-- Results Display -->
-                <div id="results-display" class="results-container">
+                <div id="results-display" tabindex="-1" class="results-container">
                     <!-- Single Mode Results Action Bar (Reset / Batch Return) -->
                     <div class="results-action-bar" style="display: flex; justify-content: flex-end; margin-bottom: 12px; gap: 8px;">
                         <button id="btn-batch-return" class="btn-reset-action" style="display: none;" onclick="returnToBatchMode()">
@@ -347,7 +348,7 @@
                     </div>
                     <div class="upload-title" id="txt-batch-drop-title">Tambah gambar</div>
                     <div class="upload-desc" id="batch-queue-status">Belum ada foto rontgen dalam antrean.</div>
-                    <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/png,image/jpeg,image/webp">
+                    <input type="file" id="batch-file-input" style="display: none;" multiple accept="image/png,image/jpeg,image/webp,.dcm,.dicom">
                 </div>
 
                 <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;">
@@ -421,22 +422,24 @@
         <section id="case-detail-tools" aria-label="Review" hidden></section>
         </div>
         </div>
-        <section id="case-guide" hidden aria-label="Guide"></section>
+        <section id="case-guide" tabindex="-1" hidden aria-label="Guide"></section>
         <footer class="workspace-footer"><span>TB Review</span><span data-case-i18n="research">Penelitian</span></footer>
     </div>
 
     <!-- Modular Scripts with Cache Busting -->
-    <script src="./static/js/i18n.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/slider.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/ood_calibration.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/progress.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/evidence.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/app.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/reports.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/cases.js?v=4.6.1-evidence"></script>
+    <script src="./static/js/i18n.js?v=4.8.0-style"></script>
+    <script src="./static/js/slider.js?v=4.8.0-style"></script>
+    <script src="./static/js/ood_calibration.js?v=4.8.0-style"></script>
+    <script src="./static/js/progress.js?v=4.8.0-style"></script>
+    <script src="./static/js/evidence.js?v=4.8.0-style"></script>
+    <script src="./static/js/dicom.js?v=4.8.0-style"></script>
+    <script src="./static/js/module_controls.js?v=4.8.0-style"></script>
+    <script src="./static/js/app.js?v=4.8.0-style"></script>
+    <script src="./static/js/reports.js?v=4.8.0-style"></script>
+    <script src="./static/js/cases.js?v=4.8.0-style"></script>
 
-    <script src="./static/js/archive.js?v=4.6.1-evidence"></script>
-    <script src="./static/js/settings.js?v=4.6.1-evidence"></script>
+    <script src="./static/js/archive.js?v=4.8.0-style"></script>
+    <script src="./static/js/settings.js?v=4.8.0-style"></script>
 
     <!-- Legacy cache cleanup is scoped and owned by the service worker. -->
 </body>

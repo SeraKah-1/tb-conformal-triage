@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.6.1-evidence').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.8.0-style').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +266,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.6.1-evidence');
+            const cache = await caches.open('tb-conformal-offline-v4.8.0-style');
             const required = ['./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -319,7 +319,15 @@ function initSingleFileHandlers() {
     }
 }
 
-function handleSingleFile(file) {
+let inputPreparationVersion=0;
+async function handleSingleFile(file) {
+    const preparation=++inputPreparationVersion;
+    if (file && window.dicomInput?.isDicom(file)) {
+        ++singleSelectionVersion; selectedFile=null;
+        const go=document.getElementById('btn-submit');if(go)go.disabled=true;
+        try { const converted=await window.dicomInput.toPng(file);if(preparation!==inputPreparationVersion)return;file=converted.file;file.dicomMetadata=converted.metadata; }
+        catch(error){if(preparation===inputPreparationVersion)alert(error.message);return;}
+    }
     if (!file) return;
     if (!file.type.startsWith('image/') && !file.name.match(/\.(png|jpe?g|webp)$/i)) {
         alert(currentLang === 'en' ? 'Please upload a valid radiograph image (PNG, JPEG, WebP).' : 'Harap unggah file foto rontgen yang valid (PNG, JPEG, atau WebP).');
@@ -1035,12 +1043,13 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
     return outCanvas.toDataURL('image/png');
 }
 
-async function runClientSideInference(file, imageElement, iqaResult, onProgress) {
+async function runClientSideInference(file, imageElement, iqaResult, onProgress, capturedModules) {
+    const modules = capturedModules || window.moduleControls?.snapshot() || {iqa:true,ood:true,conformal:true};
     if(onProgress)onProgress({phase:'model'});
     const session = await getOrtSession((percent,received,total,source)=>onProgress?.({phase:source==='cache'?'model':'download',percent,received,totalBytes:total}),phase=>onProgress?.({phase}));
     if(onProgress){onProgress({phase:'inference'});await window.workProgress?.paint();}
     const t0 = performance.now();
-    const isInverted = iqaResult ? iqaResult.is_inverted : false;
+    const isInverted = file.dicomMetadata ? false : (iqaResult ? iqaResult.is_inverted : false);
     const tensor = preprocessImageForONNX(imageElement, isInverted);
 
     const results = await session.run({ input: tensor });
@@ -1065,7 +1074,7 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress)
     const calibration = typeof OOD_REFERENCE_CALIBRATION !== 'undefined' ? OOD_REFERENCE_CALIBRATION : null;
     const validVector = (values, positive = false) => Boolean(values && values.length === 1024 &&
         Array.from(values).every(v => Number.isFinite(v) && (!positive || v > 0)));
-    const hasOodCalib = Boolean(calibration && calibration.feature_dim === 1024 &&
+    const hasOodCalib = modules.ood && Boolean(calibration && calibration.feature_dim === 1024 &&
         validVector(calibration.mu_0) && validVector(calibration.mu_1) &&
         validVector(calibration.std_inv, true) && Number.isFinite(calibration.threshold_diag) &&
         calibration.threshold_diag > 0 && validVector(latents));
@@ -1121,15 +1130,15 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress)
     const includeNormal = (probNormal >= (1.0 - q0));
     const includeTb = (probTb >= (1.0 - q1));
 
-    if (includeNormal) conformalSet.push('Normal');
-    if (includeTb) conformalSet.push('Tuberculosis');
+    if (modules.conformal && includeNormal) conformalSet.push('Normal');
+    if (modules.conformal && includeTb) conformalSet.push('Tuberculosis');
 
     let triageAction = 'REFER_AMBIGUOUS_TO_DOCTOR';
     let safetyInterlock = true;
     let warningMsg = null;
 
-    const hasQualityAdvisory = Boolean(iqaResult && iqaResult.has_quality_advisory);
-    const iqaAdvisoryWarning = (iqaResult && iqaResult.warnings && iqaResult.warnings.length > 0)
+    const hasQualityAdvisory = Boolean(modules.iqa && iqaResult && iqaResult.has_quality_advisory);
+    const iqaAdvisoryWarning = (modules.iqa && iqaResult && iqaResult.warnings && iqaResult.warnings.length > 0)
         ? iqaResult.warnings[0]
         : null;
 
@@ -1188,8 +1197,10 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress)
         allow_autonomous_release: false,
         hirescam_heatmap_base64: heatBase64,
         inference_latency_ms: latMs,
+        source_dicom: file.dicomMetadata || null,
         execution_mode: 'IN_BROWSER_WASM'
     };
+    return window.moduleControls ? window.moduleControls.decorate(output, modules) : output;
 }
 
 // 8. Single CXR Triage Execution (Dual Mode Live/Static)
@@ -1197,6 +1208,7 @@ async function submitSingleTriage() {
     if (window.caseWorkspace?.state.running) return;
     if (!selectedFile || isSubmitting) return;
     const file = selectedFile;
+    const modules=window.moduleControls?.snapshot();
     const selectionVersion = singleSelectionVersion;
     const isCurrent = () => selectionVersion === singleSelectionVersion && selectedFile === file;
     isSubmitting = true;
@@ -1227,6 +1239,7 @@ async function submitSingleTriage() {
         if (!isCurrent()) return;
         report({phase:'quality'});
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
+        if(file.dicomMetadata){iqaResult.is_inverted=false;iqaResult.polarity_source='dicom-photometric-rendered';iqaResult.warnings=(iqaResult.warnings||[]).filter(w=>!w.startsWith('Polarity heuristic:'));}
         if (!iqaResult.quality_passed) {
             feedbackStatus='attention';renderRejectionResults(file.name, iqaResult, source);
             window.caseWorkspace?.captureSingle?.(file, technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH', (iqaResult.warnings || []).join('; '), iqaResult, 0));
@@ -1235,7 +1248,7 @@ async function submitSingleTriage() {
         report({phase:'model'});
         await getOrtSession((percent,received,total,source)=>report({phase:source==='cache'?'model':'download',percent,received,totalBytes:total}),phase=>report({phase}));
         if (!isCurrent()) return;
-        const data = await runClientSideInference(file, tempImg, iqaResult,report);
+        const data = await runClientSideInference(file, tempImg, iqaResult,report,modules);
         if (!isCurrent()) return;
         data.source_image = source;
         renderSingleResults(data);
@@ -1318,7 +1331,7 @@ function renderSingleResults(data) {
         || typeof ood.is_ood !== 'boolean' || ood.is_ood !== (ood.mahalanobis_distance > ood.threshold));
     if (!data || !Number.isFinite(data.probability_tb) || !Number.isFinite(data.probability_normal)
         || data.probability_tb < 0 || data.probability_tb > 1 || data.probability_normal < 0
-        || data.probability_normal > 1 || Math.abs(data.probability_tb + data.probability_normal - 1)>1e-6 || !Array.isArray(data.conformal_details?.conformal_set) || invalidOod) {
+        || data.probability_normal > 1 || Math.abs(data.probability_tb + data.probability_normal - 1)>1e-6 || (!Array.isArray(data.conformal_details?.conformal_set) && data.conformal_details?.disabled!==true) || invalidOod) {
         renderRuntimeError(currentLang === 'en' ? 'Result data is incomplete. Review the source image.' : 'Data hasil tidak lengkap. Tinjau gambar asli.', data?.source_image || null);
         return;
     }
@@ -1574,7 +1587,7 @@ function renderEvidenceBanner(data) {
     const evidence=window.caseEvidence.derive(data),lang=currentLang==='en'?'en':'id';
     const title=document.getElementById('action-title'),badge=document.getElementById('action-badge'),desc=document.getElementById('action-desc'),banner=document.getElementById('idiograph-banner');
     const titles=lang==='en'?{high:'High score',low:'Low score',intermediate:'Intermediate score',unknown:'Score unavailable'}:{high:'Skor tinggi',low:'Skor rendah',intermediate:'Skor intermediate',unknown:'Tanpa skor'};
-    if(title)title.textContent=titles[evidence.score_band]||titles.unknown;
+    if(title)title.textContent=evidence.score_available && evidence.score_band==='unknown' ? (lang==='en'?'Model score':'Skor model') : titles[evidence.score_band]||titles.unknown;
     if(badge)badge.textContent=lang==='en'?'Review required':'Review wajib';
     if(desc)desc.textContent=lang==='en'?'Model score, prediction set, technical quality and reference distance are separate findings. Clinician review is required. A non-TB score does not establish healthy lungs.':'Skor model, set prediksi, kualitas teknis, dan jarak referensi merupakan informasi terpisah. Review tenaga medis wajib. Skor non-TB tidak memastikan paru sehat.';
     if(banner){banner.className='idiograph-banner';banner.classList.add(evidence.score_band==='high'?'action-tb':evidence.score_band==='low'&&!evidence.review_reasons.length?'action-normal':'action-referral');}
@@ -1652,6 +1665,7 @@ function technicalBatchResult(file, action, warning, iqa, elapsed) {
 }
 
 async function processBatchItem(file,onProgress) {
+    const modules=window.moduleControls?.snapshot();
     if(onProgress)onProgress({phase:'decode'});
     const start = performance.now();
     const imgUrl = URL.createObjectURL(file);
@@ -1667,11 +1681,12 @@ async function processBatchItem(file,onProgress) {
         decoded = true;
         if(onProgress)onProgress({phase:'quality'});
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
+        if(file.dicomMetadata){iqaResult.is_inverted=false;iqaResult.polarity_source='dicom-photometric-rendered';iqaResult.warnings=(iqaResult.warnings||[]).filter(w=>!w.startsWith('Polarity heuristic:'));}
         if (!iqaResult.quality_passed) {
             return technicalBatchResult(file, iqaResult.reject_code || 'REJECT_NON_RADIOGRAPH',
                 (iqaResult.warnings || []).join('; '), iqaResult, performance.now() - start);
         }
-        return await runClientSideInference(file, tempImg, iqaResult,onProgress);
+        return await runClientSideInference(file, tempImg, iqaResult,onProgress,modules);
     } catch (err) {
         return technicalBatchResult(file, decoded ? 'ERROR_RUNTIME' : 'REJECT_CORRUPT_IMAGE',
             err.message || 'Processing failed; clinician review required.', null, performance.now() - start);

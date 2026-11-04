@@ -1,6 +1,6 @@
 // TB Conformal Triage Clinical Workstation - Offline Service Worker
 // Versioned offline assets; network-first code with scoped cache fallback.
-const CACHE_NAME = 'tb-conformal-offline-v4.6.1-evidence';
+const CACHE_NAME = 'tb-conformal-offline-v4.8.0-style';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -8,6 +8,8 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './static/css/workstation.css',
   './static/js/app.js',
+  './static/js/dicom.js',
+  './static/js/module_controls.js',
   './static/js/evidence.js',
   './static/js/progress.js',
   './static/js/cases.js',

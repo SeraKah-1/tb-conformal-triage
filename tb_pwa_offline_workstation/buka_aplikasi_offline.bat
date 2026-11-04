@@ -1,61 +1,33 @@
 @echo off
+setlocal
 cd /d "%~dp0"
-title TB Conformal Triage - Workstation Klinis Offline
-color 0A
-echo =====================================================================
-echo    TB CONFORMAL TRIAGE & CLINICAL SCREENING WORKSTATION (OFFLINE)
-echo    Investigational SaMD Kelas B - BioMedCLIP Distilled Model v11
-echo =====================================================================
-echo.
-echo [1/2] Menyiapkan server lokal offline di komputer ini...
-
+title TB Review - Local
+set "HOST=127.0.0.1"
+set "PORT=8080"
+echo TB Review - alat penelitian. Semua hasil perlu review tenaga medis.
+echo Server lokal: http://127.0.0.1:8080/index.html
 where node >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    echo Node.js terdeteksi. Memulai server lokal via server.js di port 8080...
-    start /B node server.js >nul 2>&1
-    timeout /t 2 >nul
-    echo [2/2] Membuka workstation di browser...
-    start http://localhost:8080/index.html
-    goto selesai
+if errorlevel 1 (
+    echo Node.js tidak ditemukan. Pasang Node.js LTS lalu jalankan file ini lagi.
+    pause
+    exit /b 1
 )
-
-where python >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    echo Python terdeteksi. Memulai server lokal offline di port 8080...
-    start /B python -m http.server 8080 >nul 2>&1
-    timeout /t 2 >nul
-    echo [2/2] Membuka workstation di browser...
-    start http://localhost:8080/index.html
-    goto selesai
-)
-
-where py >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    echo Python launcher (py) terdeteksi. Memulai server port 8080...
-    start /B py -m http.server 8080 >nul 2>&1
-    timeout /t 2 >nul
-    echo [2/2] Membuka workstation di browser...
-    start http://localhost:8080/index.html
-    goto selesai
-)
-
 where powershell >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    echo Python/Node tidak ditemukan. Menjalankan server lokal via PowerShell bawaan Windows...
-    start /B powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$l = New-Object System.Net.HttpListener; $l.Prefixes.Add('http://localhost:8080/'); $l.Start(); $m = @{'.html'='text/html';'.css'='text/css';'.js'='text/javascript';'.wasm'='application/wasm';'.onnx'='application/octet-stream';'.json'='application/json';'.png'='image/png';'.jpg'='image/jpeg';'.jpeg'='image/jpeg';'.svg'='image/svg+xml';'.woff2'='font/woff2'}; while ($l.IsListening) { $c = $l.GetContext(); try { $q = $c.Request; $s = $c.Response; $s.AddHeader('Access-Control-Allow-Origin', '*'); $s.AddHeader('Cross-Origin-Opener-Policy', 'same-origin'); $s.AddHeader('Cross-Origin-Embedder-Policy', 'credentialless'); $p = '.' + $q.RawUrl.Split('?')[0]; if ($p -eq './') { $p = './index.html' }; if (Test-Path $p -PathType Leaf) { $e = [IO.Path]::GetExtension($p); if ($m.ContainsKey($e)) { $s.ContentType = $m[$e] } else { $s.ContentType = 'application/octet-stream' }; $b = [IO.File]::ReadAllBytes($p); $s.ContentLength64 = $b.Length; $s.OutputStream.Write($b, 0, $b.Length) } else { $s.StatusCode = 404 } } catch {} finally { try { $c.Response.Close() } catch {} } }"
-    timeout /t 2 >nul
-    echo [2/2] Membuka workstation di browser...
-    start http://localhost:8080/index.html
-    goto selesai
+if errorlevel 1 (
+    echo PowerShell tidak tersedia untuk memeriksa kesiapan server.
+    echo Jalankan node server.js lalu buka alamat di atas setelah server siap.
+    pause
+    exit /b 1
 )
-
-echo Menjalankan file index.html langsung di browser...
-echo [PETUNJUK] Disarankan membukanya via Microsoft Edge atau Google Chrome.
-start index.html
-
-:selesai
-echo.
-echo Workstation siap digunakan 100% offline tanpa internet!
-echo Jangan tutup jendela ini selama workstation sedang digunakan.
-echo =====================================================================
-pause
+if not exist "server.js" (
+    echo server.js tidak ditemukan. Ekstrak seluruh folder aplikasi terlebih dahulu.
+    pause
+    exit /b 1
+)
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p=$null; try { $busy=$false; $probe=New-Object Net.Sockets.TcpClient; try { $probe.Connect('127.0.0.1',8080); $busy=$true } catch {} finally { $probe.Dispose() }; if($busy){ throw 'Port8080 sudah dipakai. Tutup server lama sebelum menjalankan launcher.' }; $p=Start-Process -FilePath (Get-Command node).Source -ArgumentList 'server.js' -WorkingDirectory (Get-Location).Path -NoNewWindow -PassThru; $ready=$false; for($i=0;$i -lt 50;$i++){ Start-Sleep -Milliseconds 200; if($p.HasExited){ throw 'Server berhenti. Periksa apakah port8080 sudah dipakai.' }; try { $r=Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8080/index.html' -TimeoutSec 1; if($r.StatusCode -eq 200 -and $r.Content.Contains('drop-zone')){ $ready=$true; break } } catch {} }; if(-not $ready){ throw 'Server belum siap. Browser tidak dibuka.' }; Start-Process 'http://127.0.0.1:8080/index.html'; Write-Host 'Server siap. Tutup jendela ini untuk menghentikan server.'; $p.WaitForExit(); exit $p.ExitCode } catch { Write-Host $_.Exception.Message; exit 1 } finally { if($p -and -not $p.HasExited){ Stop-Process -Id $p.Id -ErrorAction SilentlyContinue } }"
+if errorlevel 1 (
+    echo Aplikasi gagal dimulai. Tidak ada browser yang dibuka oleh launcher.
+    pause
+    exit /b 1
+)
+endlocal
