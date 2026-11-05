@@ -62,8 +62,8 @@
         // A high raw score remains visible even if quality/reference checks require review.
         if(output.score_available){
             if(p>=.65)output.score_band='high';
-            else if(set?.length===1&&set[0]==='non_tb'&&p<.20)output.score_band='low';
-            else if(set!==null){output.score_band='intermediate';if(set.length===1)add('policy_intermediate');}
+            else if(p<.20)output.score_band='low';
+            else{output.score_band='intermediate';add('policy_intermediate');}
         }
         return output;
     }
@@ -73,7 +73,7 @@
         const title=document.createElement('strong');title.textContent=label('review_required',language);container.append(title);
         if(evidence.review_reasons.length){
             const list=document.createElement('ul');list.className='case-evidence-reasons';
-            for(const reason of evidence.review_reasons){const item=document.createElement('li');item.dataset.reviewReason=reason;item.dataset.tone=['quality_advisory','ood_outside','conformal_multiple','conformal_empty'].includes(reason)?'warning':['quality_rejected','input_unreadable','processing_failure','input_rejected'].includes(reason)?'danger':'neutral';item.textContent=label(reason,language);list.append(item);}
+            for(const reason of evidence.review_reasons){const item=document.createElement('li');item.dataset.reviewReason=reason;item.textContent=label(reason,language);list.append(item);}
             container.append(list);
         }else{const note=document.createElement('p');note.className='case-hint';note.textContent=label('no_reason',language);container.append(note);}
         return evidence;

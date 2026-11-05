@@ -1320,26 +1320,3 @@ body[data-workspace-view="guide"] #processing-workspace { display: none !importa
 #module-summary[data-disabled="true"] { border-color:#fda29b; color:var(--color-tb); }
 #settings-dialog #module-controls { margin-top:16px; }
 #settings-dialog .module-switch { min-height:44px; }
-
-/* Review workspace: color describes evidence, never patient clearance. */
-.bento-grid { grid-template-columns:minmax(270px,.72fr) minmax(0,1.45fr); gap:24px; align-items:start; }
-.panel-card { padding:24px; border:1px solid var(--border-color); border-radius:12px; }
-.card-title { font-size:1rem; letter-spacing:0; }
-.card-desc,.case-hint { line-height:1.5; }
-.drop-zone { border-radius:12px; background:var(--bg-subtle); }
-.case-row { border-radius:8px; border-left:3px solid var(--border-color); }
-.case-row[data-tone="danger"] { border-left-color:#b42318; }
-.case-row[data-tone="warning"] { border-left-color:#b54708; }
-.case-row[data-tone="info"] { border-left-color:#175cd3; }
-.case-mechanism[data-tone="neutral"],.case-summary-button[data-tone="neutral"],.case-result[data-tone="neutral"],.result-evidence li[data-tone="neutral"],#case-review-reasons li[data-tone="neutral"] { color:var(--text-muted)!important; background:var(--bg-subtle); border-color:var(--border-color); }
-.result-evidence li[data-tone="danger"],#case-review-reasons li[data-tone="danger"] { color:#b42318; background:#fef3f2; }
-.case-result[data-tone="info"] { color:#1849a9; background:#eff8ff; }
-.module-switch[data-enabled="false"] { color:var(--text-muted); background:var(--bg-subtle); border-color:var(--border-color); }
-#module-summary > p { flex-basis:100%; margin:0; font-size:.75rem; }
-.case-row-issues { font-size:.76rem; line-height:1.5; color:var(--text-muted); }
-button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible { outline:3px solid #175cd3; outline-offset:3px; }
-#settings-dialog { max-width:620px; width:calc(100% - 32px); max-height:85vh; overflow:auto; }
-@media(max-width:800px) { .bento-grid { grid-template-columns:minmax(0,1fr); } .panel-card { padding:16px; } }
-@media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important; } }
-
-#case-viewer-back { border-radius:6px; }

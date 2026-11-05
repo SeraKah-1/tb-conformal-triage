@@ -42,7 +42,7 @@ try:
         page.locator('#case-filter').select_option('low');ck('low score remains visible with OOD review',page.locator('.case-row').count()==1 and page.locator('.case-open').inner_text()=='low-ood.png' and 'Luar referensi' in page.locator('.case-row-issues').inner_text())
         page.locator('#case-filter').select_option('evidenceUnknown');ck('missing or malformed evidence isolated',page.locator('.case-row').count()==2);ck('malformed score not printed as a probability',page.locator('.case-score').count()==1)
         page.locator('#case-filter').select_option('oodReferenceUnverified');ck('legacy reference filter independent of distance',page.locator('.case-row').count()==2)
-        page.evaluate('toggleLanguage()');ck('reason language switches to English','OOD reference unverified' in page.locator('#module-summary').inner_text())
+        page.evaluate('toggleLanguage()');ck('reason language switches to English','Unverified reference' in page.locator('.case-row-issues').first.inner_text())
         page.locator('#case-filter').select_option('high')
         with page.expect_download() as down:page.evaluate("caseWorkspace.export('csv')")
         text=Path(down.value.path()).read_text(encoding='utf-8-sig');rows=list(csv.reader(io.StringIO(text)));ck('export retains raw high score and reference qualification',rows[1][8]=='93.30%' and 'Reference unverified' in rows[1][11] and len(rows[1])==16 and 'Outside reference' in rows[1][15])

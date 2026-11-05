@@ -32,24 +32,6 @@
         dialog=document.createElement('dialog');dialog.id='settings-dialog';dialog.setAttribute('aria-labelledby','settings-title');
         dialog.innerHTML='<div class="settings-header"><h2 id="settings-title" data-setting-key="settings"></h2><button id="settings-close" type="button" data-setting-key="close"></button></div><dl class="settings-facts"><dt data-setting-key="storage"></dt><dd id="settings-storage"></dd><dt data-setting-key="model"></dt><dd id="settings-model"></dd><dt data-setting-key="offline"></dt><dd id="settings-offline"></dd></dl><details><summary data-setting-key="modelHash"></summary><p id="settings-model-hash" class="case-hint"></p></details><p class="case-hint" data-setting-key="backupHelp"></p><div class="case-actions"><button id="settings-backup" type="button" data-setting-key="backup"></button><button id="settings-restore" type="button" data-setting-key="restore"></button></div><input id="settings-restore-file" type="file" accept="application/json,.json" hidden><p class="case-hint" data-setting-key="restoreHelp"></p><p id="settings-status" role="status" aria-live="polite"></p>';
         document.body.append(dialog);live=document.getElementById('settings-status');
-        const offlineControl=document.createElement('label');offlineControl.className='module-switch';
-        const offlineInput=document.createElement('input');offlineInput.type='checkbox';offlineInput.id='settings-offline-enabled';offlineInput.setAttribute('role','switch');
-        try{offlineInput.checked=localStorage.getItem('tb_offline_enabled')!=='false';}catch(_){offlineInput.checked=true;}
-        const offlineLabel=document.createElement('span');offlineLabel.textContent='Offline (PWA)';offlineInput.setAttribute('aria-label','Offline (PWA)');offlineControl.append(offlineInput,offlineLabel);dialog.querySelector('.settings-facts').before(offlineControl);
-        const offlineNote=document.createElement('p');offlineNote.className='case-hint';offlineNote.id='settings-offline-note';offlineControl.after(offlineNote);
-        offlineInput.addEventListener('change',async()=>{
-            const previous=!offlineInput.checked;offlineInput.disabled=true;
-            try{
-                localStorage.setItem('tb_offline_enabled',String(offlineInput.checked));
-                if('serviceWorker' in navigator){
-                    if(offlineInput.checked)await navigator.serviceWorker.register('./sw.js?v=4.9.0-review');
-                    else {const registration=await navigator.serviceWorker.getRegistration('./');if(registration)await registration.unregister();}
-                }
-                offlineNote.textContent=language==='en'?'Reload to apply. Saved cases remain.':'Muat ulang untuk menerapkan. Kasus tersimpan tetap ada.';
-            }catch(_){offlineInput.checked=previous;try{localStorage.setItem('tb_offline_enabled',String(previous));}catch(_){}offlineNote.textContent=language==='en'?'Setting failed. Try again.':'Pengaturan gagal. Coba lagi.';}
-            finally{offlineInput.disabled=false;}
-        });
-
         const modules=document.getElementById('module-controls');
         if(modules){const summary=document.createElement('section');summary.id='module-summary';summary.className='module-panel';modules.before(summary);dialog.querySelector('.settings-header').after(modules);window.moduleControls?.render();}
         document.getElementById('settings-close').addEventListener('click',close);document.getElementById('settings-backup').addEventListener('click',backup);document.getElementById('settings-restore').addEventListener('click',restore);

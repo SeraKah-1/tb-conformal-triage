@@ -16,7 +16,10 @@
         if(!config.iqa)out.iqa_report={...result.iqa_report,available:false,disabled:true,quality_passed:null,has_quality_advisory:false,warnings:[],technical_guards_active:true};
         if(!config.ood)out.ood_report={available:false,disabled:true,is_ood:null,mahalanobis_distance:null,threshold:null,reference_status:'unavailable'};
         if(!config.conformal)out.conformal_details={...result.conformal_details,available:false,disabled:true,conformal_set:null,safety_interlock_engaged:true};
-        if(keys.some(key=>!config[key]))out.triage_action='REFER_AMBIGUOUS_TO_DOCTOR';
+        // Disabled checks do not veto the numeric model result.
+        const p=out.probability_tb;
+        const caution=(config.iqa && out.iqa_report?.has_quality_advisory===true)||(config.ood && (out.ood_report?.available!==true || out.ood_report?.is_ood!==false))||(config.conformal && (!Array.isArray(out.conformal_details?.conformal_set) || out.conformal_details.conformal_set.length!==1));
+        if(Number.isFinite(p)&&p>=0&&p<=1)out.triage_action=caution?'REFER_AMBIGUOUS_TO_DOCTOR':p>=.65?'AUTO_FLAG_TB_URGENT':p<.20?'ASSISTIVE_NORMAL_DOCTOR_VERIFY':'REFER_AMBIGUOUS_TO_DOCTOR';
         return out;
     }
     function render(){
@@ -26,8 +29,7 @@
         const summary=document.getElementById('module-summary');
         if(summary){summary.replaceChildren();const status=document.createElement('span');status.textContent=keys.map(key=>(key==='conformal'?'Conformal':key.toUpperCase())+': '+(state[key]?(en?'On':'Aktif'):(en?'Off':'Nonaktif'))).join(' · ');summary.dataset.disabled=String(keys.some(key=>!state[key]));const open=document.createElement('button');open.type='button';open.className='btn-icon';open.textContent=en?'Settings':'Pengaturan';open.addEventListener('click',()=>window.caseSettings?.open());summary.append(status,open);}
         const title=document.createElement('strong');title.textContent=en?'Checks':'Pemeriksaan';host.append(title);
-        const reference=document.createElement('p');reference.className='case-hint';reference.textContent=en?'Research model · OOD reference unverified':'Model penelitian · Referensi OOD belum terverifikasi';if(summary)summary.append(reference);
-        for(const key of keys){const label=document.createElement('label');label.className='module-switch';label.dataset.enabled=String(state[key]);const input=document.createElement('input');input.type='checkbox';input.checked=state[key];input.dataset.module=key;input.setAttribute('role','switch');input.setAttribute('aria-label',key==='conformal'?'Conformal':key.toUpperCase());input.addEventListener('change',()=>set(key,input.checked));const name=document.createElement('span');name.textContent=key==='iqa'?(en?'Image quality':'Kualitas gambar'):key==='ood'?(en?'Reference check':'Cek referensi'):'Conformal';const status=document.createElement('span');status.className='module-status';status.textContent=state[key]?(en?'On':'Aktif'):(en?'Off':'Nonaktif');label.append(input,name,status);host.append(label);}
+        for(const key of keys){const label=document.createElement('label');label.className='module-switch';label.dataset.enabled=String(state[key]);const input=document.createElement('input');input.type='checkbox';input.checked=state[key];input.dataset.module=key;input.setAttribute('role','switch');input.setAttribute('aria-label',key==='conformal'?'Conformal':key.toUpperCase());input.addEventListener('change',()=>set(key,input.checked));const name=document.createElement('span');name.textContent=key==='conformal'?'Conformal':key.toUpperCase();const status=document.createElement('span');status.className='module-status';status.textContent=state[key]?(en?'On':'Aktif'):(en?'Off':'Nonaktif');label.append(input,name,status);host.append(label);}
         const note=document.createElement('p');note.className='case-hint';note.textContent=keys.some(key=>!state[key])?(en?'Checks disabled. Results require review. Decode and blank-image guards stay active.':'Pemeriksaan dinonaktifkan. Hasil wajib ditinjau. Pemeriksaan berkas dan gambar kosong tetap aktif.'):(en?'Settings apply to the next process. Stored results keep their original settings.':'Pengaturan berlaku untuk proses berikutnya. Hasil tersimpan memakai pengaturan semula.');host.append(note);
     }
     window.moduleControls=Object.freeze({enabled,snapshot,set,decorate,render});
