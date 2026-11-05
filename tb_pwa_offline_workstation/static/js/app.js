@@ -3,7 +3,8 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.8.1-settings').then((reg) => {
+        try { if (localStorage.getItem('tb_offline_enabled') === 'false') return; } catch (_) {}
+        navigator.serviceWorker.register('./sw.js?v=4.9.0-review').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +267,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.8.1-settings');
+            const cache = await caches.open('tb-conformal-offline-v4.9.0-review');
             const required = ['./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -1591,7 +1592,7 @@ function renderEvidenceBanner(data) {
     const titles=lang==='en'?{high:'High score',low:'Low score',intermediate:'Intermediate score',unknown:'Score unavailable'}:{high:'Skor tinggi',low:'Skor rendah',intermediate:'Skor intermediate',unknown:'Tanpa skor'};
     if(title)title.textContent=evidence.score_available && evidence.score_band==='unknown' ? (lang==='en'?'Model score':'Skor model') : titles[evidence.score_band]||titles.unknown;
     if(badge)badge.textContent=lang==='en'?'Review required':'Review wajib';
-    if(desc)desc.textContent=lang==='en'?'Model score, prediction set, technical quality and reference distance are separate findings. Clinician review is required. A non-TB score does not establish healthy lungs.':'Skor model, set prediksi, kualitas teknis, dan jarak referensi merupakan informasi terpisah. Review tenaga medis wajib. Skor non-TB tidak memastikan paru sehat.';
+    if(desc)desc.textContent=lang==='en'?'Review required. Model score is not a diagnosis.':'Wajib ditinjau. Skor model bukan diagnosis.';
     if(banner){banner.className='idiograph-banner';banner.classList.add(evidence.score_band==='high'?'action-tb':evidence.score_band==='low'&&!evidence.review_reasons.length?'action-normal':'action-referral');}
     let panel=document.getElementById('result-evidence');
     if(!panel){panel=document.createElement('section');panel.id='result-evidence';panel.className='result-evidence';banner?.after(panel);}

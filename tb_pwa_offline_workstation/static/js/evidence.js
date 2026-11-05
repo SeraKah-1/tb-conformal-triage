@@ -73,7 +73,7 @@
         const title=document.createElement('strong');title.textContent=label('review_required',language);container.append(title);
         if(evidence.review_reasons.length){
             const list=document.createElement('ul');list.className='case-evidence-reasons';
-            for(const reason of evidence.review_reasons){const item=document.createElement('li');item.dataset.reviewReason=reason;item.textContent=label(reason,language);list.append(item);}
+            for(const reason of evidence.review_reasons){const item=document.createElement('li');item.dataset.reviewReason=reason;item.dataset.tone=['quality_advisory','ood_outside','conformal_multiple','conformal_empty'].includes(reason)?'warning':['quality_rejected','input_unreadable','processing_failure','input_rejected'].includes(reason)?'danger':'neutral';item.textContent=label(reason,language);list.append(item);}
             container.append(list);
         }else{const note=document.createElement('p');note.className='case-hint';note.textContent=label('no_reason',language);container.append(note);}
         return evidence;

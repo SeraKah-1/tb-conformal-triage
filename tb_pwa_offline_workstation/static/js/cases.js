@@ -15,6 +15,9 @@
     Object.assign(words.id,{exportTooLong:'Isi sel melebihi batas Excel. Gunakan CSV untuk mengekspor teks lengkap.',folder:'Folder',more:'Lainnya',heatmap:'Heatmap',heatmapMissing:'Heatmap tidak tersimpan untuk hasil ini. Gambar asli ditampilkan; membuka kasus tidak membuat heatmap baru.',resetSession:'Reset sesi',resetConfirm:'Reset sesi dan buang gambar, hasil, serta perubahan yang belum disimpan? Kasus tersimpan tetap di perangkat dan dapat dibuka di Tersimpan.',resetDone:'Sesi direset. Kasus tersimpan tetap di Tersimpan.',bulkHelp:'Pilih banyak gambar sekaligus, pilih folder, atau seret berkas dan folder ke sini. Subfolder disertakan. PNG, JPEG, WebP, dan DICOM tanpa kompresi.',readingFolder:'Membaca folder…',folderError:'Folder gagal dibaca. Coba tombol Folder. Isi folder tidak ditambahkan sebagian.',selectAll:'Pilih semua',selectionHelp:'Pilihan dan ekspor mencakup kasus sesuai filter pada semua halaman.',yes:'Ya',no:'Tidak',caseId:'ID kasus',sourcePath:'Lokasi sumber',excel:'Excel',csv:'CSV',exportHelp:'Ekspor memakai kasus terpilih, atau daftar sesuai filter bila tidak ada pilihan. Excel menjaga kolom dan baris catatan. Berkas tetap di perangkat.',reviewFirst:'Tinjau dahulu',routine:'Hasil lainnya'});
     Object.assign(words.en,{uncertain:'Set / score',policyIntermediate:'Intermediate score',evidenceUnknown:'Unknown evidence',oodReferenceUnverified:'Unverified reference',reviewReasons:'Review reasons',referenceUnverified:'Reference unverified',reasonHigh:'Raw TB score is at least 65%, including results with quality or reference warnings. Review remains required.',reasonLow:'Raw TB score is below 20% with a single non-TB label. This is not a healthy-lung finding; review remains required.',reasonUncertain:'A multiple-label/empty prediction set or an intermediate policy score; quality and OOD reasons are shown separately.',reasonPolicyIntermediate:'The prediction set has one label, but the score lies outside the high/low policy bands. This is not conformal ambiguity.',reasonEvidenceUnknown:'A score, prediction set, quality check or reference measurement is missing or malformed.',reasonOodReferenceUnverified:'An OOD distance was computed, but its reference binding has not been verified.'});
     Object.assign(words.id,{uncertain:'Set / skor',policyIntermediate:'Skor intermediate',evidenceUnknown:'Bukti tidak lengkap',oodReferenceUnverified:'Referensi legacy',reviewReasons:'Alasan review',referenceUnverified:'Referensi legacy',reasonHigh:'Skor TB mentah minimal 65%, termasuk hasil dengan peringatan kualitas atau referensi. Review tetap wajib.',reasonLow:'Skor TB mentah di bawah 20% dengan satu label non-TB. Ini bukan temuan paru sehat; review tetap wajib.',reasonUncertain:'Set prediksi label ganda/kosong atau skor intermediate kebijakan; alasan kualitas dan OOD ditampilkan terpisah.',reasonPolicyIntermediate:'Set prediksi berisi satu label, tetapi skor di luar rentang tinggi/rendah kebijakan. Ini bukan ambiguitas conformal.',reasonEvidenceUnknown:'Skor, set prediksi, pemeriksaan kualitas atau pengukuran referensi tidak tersedia atau tidak valid.',reasonOodReferenceUnverified:'Jarak OOD dihitung, tetapi keterikatan referensinya belum diverifikasi.'});
+    // Short task labels; detailed definitions remain in filters and Guide.
+    Object.assign(words.en,{bulkHelp:'Add files, a folder, or a ZIP. PNG, JPEG, WebP, uncompressed DICOM.',exportHelp:'Export selected cases; otherwise export the filtered list.',summaryHelp:'Counts overlap. All results require review.',orderHelp:'Unreviewed first, then oldest. Not clinical urgency.',emptyHelp:'Add images to start.',dirtyHelp:'Save image, result, and notes.'});
+    Object.assign(words.id,{bulkHelp:'Tambah berkas, folder, atau ZIP. PNG, JPEG, WebP, DICOM tanpa kompresi.',exportHelp:'Ekspor pilihan; tanpa pilihan, ekspor daftar terfilter.',summaryHelp:'Jumlah dapat tumpang tindih. Semua hasil perlu ditinjau.',orderHelp:'Belum ditinjau dahulu, lalu terlama. Bukan urgensi klinis.',emptyHelp:'Tambah gambar untuk mulai.',dirtyHelp:'Simpan gambar, hasil, dan catatan.'});
     const records = new Map();
     const selected = new Set();
     const singleIds = new WeakMap();
@@ -130,7 +133,7 @@
         const checks=make('details','case-checks'),groups=make('div','case-summary');checks.append(make('summary','',language==='en'?'Checks':'Pemeriksaan'),groups);
         for(const key of ['unreviewed','high','imageIssue','iqaWarning','oodIssue','conformalAmbiguous','conformalEmpty']) {
             const count=pool.reduce((n,r)=>n+Number(matchesFilter(r,key)),0);
-            const b=button(key,()=>chooseFilter(key));b.classList.add('case-summary-button');b.dataset.tone=key==='high'?'danger':key==='unreviewed'?'info':'warning';b.dataset.filter=key;
+            const b=button(key,()=>chooseFilter(key));b.classList.add('case-summary-button');b.dataset.tone=count===0?'neutral':key==='high'||key==='imageIssue'?'danger':key==='unreviewed'?'info':'warning';b.dataset.filter=key;
             b.append(make('strong','',String(count)));b.setAttribute('aria-pressed',String(filter===key));if(['unreviewed','high','imageIssue'].includes(key))summaryBox.append(b);else {groups.append(b);if(filter===key)checks.open=true;}
         }
         summaryBox.append(checks);
@@ -339,7 +342,7 @@
         const state=make('p','case-meta',`${r.id} · ${t(r.reviewed?'reviewed':'unreviewed')} · ${t(dirty(r)?'changed':'saved')}`);tools.append(state);
         const mechanisms=make('div','case-mechanisms');
         for(const [name,value] of Object.entries(mechanismStates(r))) {
-            const badge=make('div','case-mechanism');badge.dataset.mechanism=name;badge.dataset.tone=['passed','within','singleton'].includes(value)?'success':'warning';
+            const badge=make('div','case-mechanism');badge.dataset.mechanism=name;badge.dataset.tone=['passed','within','singleton'].includes(value)?'success':value==='unavailable'?'neutral':'warning';
             badge.append(make('span','case-mechanism-label',name),make('strong','case-mechanism-value',t(value)));mechanisms.append(badge);
         }
         tools.append(mechanisms);
@@ -403,9 +406,11 @@
             const meta=make('p','case-meta',`${new Date(r.createdAt).toLocaleString(language==='en'?'en-GB':'id-ID')} · ${t(r.state)} · ${t(r.reviewed?'reviewed':'unreviewed')}`);
             const summary=make('p','case-result',`${r.flagged?'★ ':''}${t(outcome(r))}${r.saved ? ` · ${t('saved')}`:''}${r.saved&&dirty(r)?` · ${t('changed')}`:''}`);
             body.append(title,meta,summary);if(hasPrediction(r)){const score=make('p','case-score',`${t('score')}: ${r.result.probability_tb>0&&r.result.probability_tb<.0001?'<0.01':(r.result.probability_tb*100).toFixed(2)}%`);score.title='P(TB) = '+r.result.probability_tb;body.append(score);}
-            const reviewReasons=evidence(r).review_reasons;
+            const reviewReasons=evidence(r).review_reasons.filter(key=>key!=='ood_reference_unverified');
             if(r.result&&reviewReasons.length){const reasons=make('p','case-row-issues',reviewReasons.map(key=>window.caseEvidence?.label(key,language)||key).join(' · '));reasons.dataset.reviewReasons=reviewReasons.join(' ');body.append(reasons);}
-            const tone=outcome(r)==='high'||r.state==='failed'?'danger':outcome(r)==='low'?'info':r.result?'warning':'neutral';
+            const ev=evidence(r);
+            const caution=ev.iqa_state==='advisory'||ev.ood_state==='outside'||['empty','multiple'].includes(ev.conformal_state);
+            const tone=outcome(r)==='high'||r.state==='failed'||ev.iqa_state==='rejected'?'danger':caution?'warning':outcome(r)==='low'?'info':'neutral';
             summary.dataset.tone=tone;row.dataset.tone=tone;
             const actions=make('div','case-row-actions');
             if(hasPrediction(r)) {const heat=button('heatmap',()=>openCase(r.id,true));heat.dataset.heatmapId=r.id;actions.append(heat);}
