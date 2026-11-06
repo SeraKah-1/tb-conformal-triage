@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.8.3-controls').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.8.4-pointer-loading').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +266,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.8.3-controls');
+            const cache = await caches.open('tb-conformal-offline-v4.8.4-pointer-loading');
             const required = ['./static/js/dicom.js','./static/js/module_controls.js','./static/js/slider.js','./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -1221,6 +1221,7 @@ async function submitSingleTriage() {
     const progressToken=window.workProgress?.start('single',{phase:'decode',filename:file.name});
     const report=stage=>{if(isCurrent())window.workProgress?.update('single',stage,progressToken);};
     setLoadingState(true);
+    await window.workProgress?.paint();
     try {
         // Always read this request's own file, including while its preview is still loading.
         const source = await new Promise((resolve, reject) => {
@@ -1240,6 +1241,7 @@ async function submitSingleTriage() {
         });
         if (!isCurrent()) return;
         report({phase:'quality'});
+        await window.workProgress?.paint();
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if(file.dicomMetadata){iqaResult.is_inverted=false;iqaResult.polarity_source='dicom-photometric-rendered';iqaResult.warnings=(iqaResult.warnings||[]).filter(w=>!w.startsWith('Polarity heuristic:'));}
         if (!iqaResult.quality_passed) {
@@ -1687,6 +1689,7 @@ async function processBatchItem(file,onProgress,capturedModules) {
         });
         decoded = true;
         if(onProgress)onProgress({phase:'quality'});
+        await window.workProgress?.paint();
         const iqaResult = evaluatePreAnalyticQuality(tempImg);
         if(file.dicomMetadata){iqaResult.is_inverted=false;iqaResult.polarity_source='dicom-photometric-rendered';iqaResult.warnings=(iqaResult.warnings||[]).filter(w=>!w.startsWith('Polarity heuristic:'));}
         if (!iqaResult.quality_passed) {

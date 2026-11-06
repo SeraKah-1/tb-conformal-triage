@@ -72,25 +72,18 @@ function initSliderInteractions() {
         onSliderMove(Math.round(pct));
     }
 
-    viewport.addEventListener('dragstart', function(e) { e.preventDefault(); });
-    viewport.addEventListener('mousedown', function(e) {
-        if (e.button !== 0 || document.getElementById('slider-control')?.disabled) return;
-        e.preventDefault();
-        isDragging = true;
+    viewport.addEventListener('dragstart', e => e.preventDefault());
+    viewport.addEventListener('pointerdown', e => {
+        if ((e.pointerType==='mouse' && e.button!==0) || document.getElementById('slider-control')?.disabled) return;
+        e.preventDefault();isDragging=true;
+        viewport.setPointerCapture?.(e.pointerId);
         handlePointerMove(e);
     });
-
-    window.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('mouseup', function() { isDragging = false; });
-
-    viewport.addEventListener('touchstart', function(e) {
-        isDragging = true;
-        handlePointerMove(e);
-    }, { passive: true });
-
-    window.addEventListener('touchmove', handlePointerMove, { passive: true });
-    window.addEventListener('touchend', function() { isDragging = false; });
-    window.addEventListener('touchcancel', function() { isDragging = false; });
+    viewport.addEventListener('pointermove',handlePointerMove);
+    const stop = () => { isDragging=false; };
+    viewport.addEventListener('pointerup',stop);
+    viewport.addEventListener('pointercancel',stop);
+    viewport.addEventListener('lostpointercapture',stop);
 }
 
 document.addEventListener('DOMContentLoaded', initSliderInteractions);

@@ -33,6 +33,8 @@ try:
    p.evaluate("setSliderMode('orig')");check(f'{width} original mode has no fake divider',p.locator('#slider-control').is_enabled() and p.locator('#slider-divider').is_hidden())
    p.locator('#slider-control').fill('35');p.locator('#slider-control').dispatch_event('input');check(f'{width} dragging from original restores split',p.locator('#slider-divider').is_visible() and p.locator('#slider-control').input_value()=='35')
    p.locator('#slider-viewport').scroll_into_view_if_needed();box=p.locator('#slider-viewport').bounding_box();p.mouse.move(box['x']+box['width']*.2,box['y']+box['height']*.5);p.mouse.down();p.mouse.move(box['x']+box['width']*.7,box['y']+box['height']*.5);p.mouse.up();check(f'{width} pointer drag',65<=float(p.locator('#slider-control').input_value())<=75)
+   if width==390:
+    cdp=p.context.new_cdp_session(p);point={'x':box['x']+box['width']*.3,'y':box['y']+box['height']*.5};cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[point]});point['x']=box['x']+box['width']*.6;cdp.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[point]});cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]});check('touch drag',55<=float(p.locator('#slider-control').input_value())<=65)
    check(f'{width} no next case disabled',p.locator('#case-detail-tools [data-action=next]').is_disabled())
    p.screenshot(path=f'/workspace/audit-tb/controls-20261106/desktop-{width}.png',full_page=True)
    check(f'{width} no horizontal overflow',p.evaluate('document.documentElement.scrollWidth<=innerWidth'))

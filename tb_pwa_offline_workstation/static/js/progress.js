@@ -17,6 +17,12 @@
         if(!job){card.hidden=true;stopTimer();return;}
         card.hidden=false;card.dataset.state=job.ended?job.status:'busy';card.dataset.busy=String(!job.ended);
         text('work-phase',word(job.ended?job.status:job.phase));
+        const loading=document.getElementById('loading-state');
+        if(job.key==='single' && !job.ended && loading){
+            loading.setAttribute('role','status');loading.setAttribute('aria-live','polite');
+            text('txt-loading-title',word(job.phase));
+            text('txt-loading-sub',Math.floor((performance.now()-job.started)/1000)+' '+word('seconds')+' · '+word('local'));
+        }
         text('work-file',job.filename||'');document.getElementById('work-file').title=job.filename||'';
         const elapsed=Math.floor(((job.ended||performance.now())-job.started)/1000);text('work-elapsed',elapsed+' '+word('seconds'));
         const meter=document.getElementById('work-meter');meter.setAttribute('aria-label',word(job.phase));
