@@ -355,6 +355,7 @@
         actions.append(save,button(r.flagged?'unflag':'flag',()=>changeActive('flagged',!r.flagged)),review);
         if(view!=='saved'&&r.state==='failed'){const again=button('retry',()=>retry(r.id));again.id='case-retry-one';again.disabled=running||singleBusy();actions.append(again);}
         if(view!=='single')actions.append(button('next',()=> {const rows=visibleRecords();const index=rows.findIndex(x=>x.id===activeId);const next=rows[index+1]||rows.find(x=>x.id!==activeId&&!x.reviewed);if(next)openCase(next.id);}));
+        const nextButton=actions.querySelector('[data-action=next]');if(nextButton){nextButton.disabled=!visibleRecords().some(item=>item.id!==activeId);nextButton.title=nextButton.disabled?(language==='en'?'No other cases':'Tidak ada kasus lain'):'';}
         actions.append(button('print',()=>window.print()),button('remove',()=>removeCases([r.id])));
         const printModel=make('p','case-print-model',`${t('model')}: ${r.modelVersion}`);printModel.hidden=true;tools.append(printModel);
         const modelDetails=make('details','case-model-details');modelDetails.append(make('summary','',t('model')),make('p','case-hint',`${t('savedVersion')}: ${r.modelVersion}`));

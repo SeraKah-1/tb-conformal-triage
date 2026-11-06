@@ -6,7 +6,14 @@ function onSliderMove(val, force = false) {
     var control = document.getElementById('slider-control');
     
     if (control && control.disabled && !force) return;
-    if (control && control.value !== val) control.value = val;
+    val = Number(val);
+    if (!Number.isFinite(val)) return;
+    val = Math.max(0, Math.min(100, val));
+    if (!force && control && !control.disabled) {
+        for (const mode of ['orig','heat','split']) document.getElementById('btn-mode-'+mode)?.classList.toggle('active',mode==='split');
+        if (divider) divider.hidden=false;
+    }
+    if (control && Number(control.value) !== val) control.value = val;
     if (divider) divider.style.left = val + '%';
     // Native CXR on left, Heatmap on right: clip heatmap from left by val%
     if (heatImg) heatImg.style.clipPath = 'inset(0 0 0 ' + val + '%)';
@@ -19,7 +26,7 @@ function setSliderMode(mode) {
     var btnHeat = document.getElementById('btn-mode-heat');
 
     if ((mode === 'split' && btnSplit?.disabled) || (mode === 'heat' && btnHeat?.disabled)) mode = 'orig';
-    if (control) control.disabled = mode !== 'split';
+    if (control) control.disabled = !btnSplit || btnSplit.disabled;
     const divider = document.getElementById('slider-divider');
     if (divider) divider.hidden = mode !== 'split';
 
@@ -65,7 +72,10 @@ function initSliderInteractions() {
         onSliderMove(Math.round(pct));
     }
 
+    viewport.addEventListener('dragstart', function(e) { e.preventDefault(); });
     viewport.addEventListener('mousedown', function(e) {
+        if (e.button !== 0 || document.getElementById('slider-control')?.disabled) return;
+        e.preventDefault();
         isDragging = true;
         handlePointerMove(e);
     });

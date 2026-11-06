@@ -1,6 +1,6 @@
 // TB Conformal Triage Clinical Workstation - Offline Service Worker
 // Versioned offline assets; network-first code with scoped cache fallback.
-const CACHE_NAME = 'tb-conformal-offline-v4.8.2-filter-fix';
+const CACHE_NAME = 'tb-conformal-offline-v4.8.3-controls';
 
 const ASSETS_TO_CACHE = [
   './',
