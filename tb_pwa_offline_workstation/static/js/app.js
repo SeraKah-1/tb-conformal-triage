@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.8.4-pointer-loading').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.8.5-heatmap').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +266,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.8.4-pointer-loading');
+            const cache = await caches.open('tb-conformal-offline-v4.8.5-heatmap');
             const required = ['./static/js/dicom.js','./static/js/module_controls.js','./static/js/slider.js','./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -972,12 +972,8 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
         return null;
     }
 
-    // Clinically suppress heatmap only if TB probability is under 15% (clean normal).
-    // For presumptive or subtle lesions (P(TB) >= 15%), generate CAM heatmap so clinicians can inspect focal activations.
-    if (probTb !== undefined && probTb < 0.15) {
-        return null;
-    }
-
+    // Visualization availability must not depend on the predicted class score.
+    if (!Array.from(camArray).every(Number.isFinite) || !Number.isInteger(Math.sqrt(camArray.length)) || camArray.length<4) return null;
     const camDim = Math.round(Math.sqrt(camArray.length)) || 512;
     let maxVal = 0;
     const taperedCam = new Float32Array(camArray.length);
@@ -996,10 +992,7 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
         if (taperedCam[i] > maxVal) maxVal = taperedCam[i];
     }
 
-    // Suppress if activation is essentially zero
-    if (maxVal <= 0.05) {
-        return null;
-    }
+    // A zero map renders transparently; never invent a focal activation.
 
     const camCanvas = document.createElement('canvas');
     camCanvas.width = camDim;
@@ -1011,7 +1004,7 @@ function generateHeatmapDataUrl(camArray, origWidth, origHeight, probTb) {
     const baseAlphaScale = probTb !== undefined ? Math.min(1.0, Math.max(0.4, probTb)) : 0.8;
 
     for (let i = 0; i < taperedCam.length; i++) {
-        const norm = taperedCam[i] / maxVal;
+        const norm = maxVal > 0 ? Math.max(0,taperedCam[i]) / maxVal : 0;
         
         // Colormap (Jet / Turbo: Blue -> Cyan -> Yellow -> Red)
         const four_v = 4.0 * norm;
@@ -1173,7 +1166,7 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress,
     const heatBase64 = heatDataUrl;
     const latMs = Math.round(performance.now() - t0);
 
-    return {
+    const output = {
         filename: file.name,
         predicted_class: probTb >= 0.4401 ? 'Tuberculosis' : 'Normal',
         probability_tb: probTb,
