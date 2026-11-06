@@ -18,7 +18,7 @@
         if(!config.conformal)out.conformal_details={...result.conformal_details,available:false,disabled:true,conformal_set:null,safety_interlock_engaged:true};
         // Disabled checks do not veto the numeric model result.
         const p=out.probability_tb;
-        const caution=(config.iqa && out.iqa_report?.has_quality_advisory===true)||(config.ood && (out.ood_report?.available!==true || out.ood_report?.is_ood!==false))||(config.conformal && (!Array.isArray(out.conformal_details?.conformal_set) || out.conformal_details.conformal_set.length!==1));
+        const caution=(config.ood && (out.ood_report?.available!==true || out.ood_report?.is_ood!==false))||(config.conformal && (!Array.isArray(out.conformal_details?.conformal_set) || out.conformal_details.conformal_set.length!==1));
         if(Number.isFinite(p)&&p>=0&&p<=1)out.triage_action=caution?'REFER_AMBIGUOUS_TO_DOCTOR':p>=.65?'AUTO_FLAG_TB_URGENT':p<.20?'ASSISTIVE_NORMAL_DOCTOR_VERIFY':'REFER_AMBIGUOUS_TO_DOCTOR';
         return out;
     }

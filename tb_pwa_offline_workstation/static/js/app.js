@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.8.5-heatmap').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.8.6-quality-advisory').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,7 +266,7 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.8.5-heatmap');
+            const cache = await caches.open('tb-conformal-offline-v4.8.6-quality-advisory');
             const required = ['./static/js/dicom.js','./static/js/module_controls.js','./static/js/slider.js','./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
@@ -874,9 +874,8 @@ function evaluatePreAnalyticQuality(imgElement, canvas, ctx) {
     let qualityPassed = true;
 
     if (isInvalidAnatomyDoc) {
-        rejectCode = 'REJECT_INVALID_ANATOMY_DOCUMENT';
-        qualityPassed = false;
-        advisoryWarnings.push('Extreme-intensity blank check failed; anatomy and text were not classified.');
+        hasQualityAdvisory = true;
+        advisoryWarnings.push('Extreme image intensity. Check the source image; this heuristic does not establish whether the image is usable.');
     }
 
     if (isInverted) {
@@ -1139,7 +1138,7 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress,
 
     // Investigational assistive policy: no patient may be discharged by this app.
     // A valid OOD/IQA assessment is required before even an assistive model action.
-    const qualityValid = Boolean(iqaResult && iqaResult.quality_passed === true && !hasQualityAdvisory);
+    const qualityValid = Boolean(iqaResult && iqaResult.quality_passed === true);
     if ((modules.iqa && !qualityValid) || (modules.ood && (!oodAvailable || isOod))) {
         warningMsg = oodWarning || (currentLang === 'id'
             ? 'Kualitas citra memerlukan telaah dokter. Keputusan otomatis ditahan.'
