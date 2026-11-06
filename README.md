@@ -1,9 +1,11 @@
 # Selective Conformal AI Architecture for Tuberculosis Triage
+
+> **Offline package 4.8.6:** includes the current UI, model and offline runtime. Extract the entire ZIP. Windows requires Node.js LTS; Linux requires Node.js or Python 3. No npm install is required. Worker/GPU acceleration is not included. See `START_HERE.txt` inside the ZIP.
 ### Multi-Cohort Development, BioMedCLIP Distillation, and Independent External Stress-Testing
 
 [![Release: v2.1.0-workstation](https://img.shields.io/badge/Release-v2.1.0--workstation-059669.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/tag/v2.1.0-workstation)
 [![Live Workstation: Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20Workstation-Hugging%20Face%20Space-yellow.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
-[![Offline Bundle: 32.8 MB](https://img.shields.io/badge/Offline%20Bundle-32.8%20MB%20ZIP-purple.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip)
+[![Offline Bundle: 32.9 MiB](https://img.shields.io/badge/Offline%20Bundle-32.9%20MiB%20ZIP-purple.svg?style=flat-square)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/downloads/TB_Review_Offline_4.8.6.zip?download=true)
 [![Baseline: v1.0.0-researchsquare](https://img.shields.io/badge/Baseline-v1.0.0--researchsquare-0284C7.svg?style=flat-square)](https://github.com/SeraKah-1/tb-conformal-triage/tree/v1.0.0-researchsquare)
 [![DOI: Paper 1 (Research Square)](https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--11034929%2Fv1-blue.svg?style=flat-square)](https://doi.org/10.21203/rs.3.rs-11034929/v1)
 [![DOI: Paper 2 (Preprints.org)](https://img.shields.io/badge/DOI-10.20944%2Fpreprints202609.2451.v1-blue.svg?style=flat-square)](https://doi.org/10.20944/preprints202609.2451.v1)
@@ -22,7 +24,7 @@
   <img src="https://img.shields.io/badge/%F0%9F%8C%90_LAUNCH_WEB_WORKSTATION-(FREE_%26_IN--BROWSER_WASM)-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Launch Web Workstation" height="42">
 </a>
 &nbsp;&nbsp;
-<a href="https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip">
+<a href="https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/downloads/TB_Review_Offline_4.8.6.zip?download=true">
   <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_OFFLINE_USB_BUNDLE-(32.8_MB_ZIP)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Download Offline USB Bundle" height="42">
 </a>
 
@@ -30,7 +32,7 @@
 
 | Path A: In-Browser PWA (Zero Setup) | Path B: Air-Gapped USB Flash Drive (Offline Facilities) |
 | :--- | :--- |
-| **Step 1:** Open the Web Workstation via Chrome, Edge, or any modern browser.<br>**Step 2:** Click *"Install Application"* on screen or in the browser URL bar.<br>**Step 3:** Launch directly from your Desktop icon. Model weights (26.9 MB) cache locally for permanent offline execution. | **Step 1:** Click the green button above to download the offline ZIP package (32.8 MB).<br>**Step 2:** Extract the archive directly onto a portable USB drive.<br>**Step 3:** Connect to the target clinical PC and double-click `buka_aplikasi_offline.bat` (Windows) or execute `buka_aplikasi_offline.sh` (Linux). |
+| **Step 1:** Open the Web Workstation via Chrome, Edge, or any modern browser.<br>**Step 2:** Click *"Install Application"* on screen or in the browser URL bar.<br>**Step 3:** Launch directly from your Desktop icon. Model weights (26.9 MB) cache locally for permanent offline execution. | **Step 1:** Click the green button above to download the offline ZIP package (32.9 MiB).<br>**Step 2:** Extract the archive directly onto a portable USB drive.<br>**Step 3:** Connect to the target clinical PC and double-click `buka_aplikasi_offline.bat` (Windows) or execute `buka_aplikasi_offline.sh` (Linux). |
 
 </div>
 
@@ -119,13 +121,13 @@ To address operational challenges in rural clinics and decentralized facilities 
 
 ### Technical Highlights
 
-* **Direct Download (Offline USB Bundle):** [TB_Triage_Portable_Offline_Bundle.zip (32.8 MB)](https://github.com/SeraKah-1/tb-conformal-triage/releases/download/v2.1.0-workstation/TB_Triage_Portable_Offline_Bundle.zip)
+* **Direct Download (Offline USB Bundle):** [TB_Review_Offline_4.8.6.zip (32.9 MiB)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation/resolve/main/downloads/TB_Review_Offline_4.8.6.zip?download=true)
 * **Live In-Browser Workstation:** [Hugging Face Space (Ressshh/tb-conformal-triage-workstation)](https://huggingface.co/spaces/Ressshh/tb-conformal-triage-workstation)
 * **Zero External Dependencies:** All runtime libraries (`ort.min.js`, `ort-wasm-simd.wasm`, KaTeX CSS and WOFF2 fonts) are bundled locally in `./vendor/`.
 * **Air-Gapped Cache:** Service Worker (`sw.js`) stores the 26.9 MB ONNX model directly inside browser Cache storage for permanent offline execution.
 * **Zero Network Latency:** Bypasses remote server calls entirely. Forward passes execute on the local CPU via WebAssembly SIMD (77.5 ms per radiograph).
 * **Clinical Data Privacy:** Radiographs never leave client volatile memory. Designed to align with healthcare privacy standards (such as Indonesian UU PDP No. 27/2022, Permenkes No. 24/2022, and HIPAA de-identification guidelines).
-* **Portable USB Bundle:** Self-contained archive (`TB_Triage_Portable_Offline_Bundle.zip`, 32.8 MB) with one-click launcher scripts (`buka_aplikasi_offline.bat` for Windows and `buka_aplikasi_offline.sh` for Linux) for zero-internet facilities.
+* **Portable USB Bundle:** Self-contained archive (`TB_Review_Offline_4.8.6.zip`, 32.9 MiB) with one-click launcher scripts (`buka_aplikasi_offline.bat` for Windows and `buka_aplikasi_offline.sh` for Linux) for zero-internet facilities.
 
 ---
 
