@@ -19,7 +19,7 @@ test('low singleton score stays visible with separate OOD review',()=>{
 });
 test('multiple and empty sets retain actual conformal reasons',()=>{
  const multiple=api.derive(fixture(.1,['Normal','TB']));assert.equal(multiple.conformal_state,'multiple');assert.ok(multiple.review_reasons.includes('conformal_multiple'));assert.ok(!multiple.review_reasons.includes('policy_intermediate'));
- const empty=api.derive(fixture(.3,[]));assert.equal(empty.conformal_state,'empty');assert.ok(empty.review_reasons.includes('conformal_empty'));assert.ok(!empty.review_reasons.includes('policy_intermediate'));
+ const empty=api.derive(fixture(.3,[]));assert.equal(empty.conformal_state,'empty');assert.ok(empty.review_reasons.includes('conformal_empty'));assert.ok(empty.review_reasons.includes('policy_intermediate'));assert.equal(empty.score_band,'intermediate');
 });
 test('legacy reference qualification remains separate from available distance',()=>{
  const old=fixture();delete old.ood_report.reference_status;const value=api.derive(old);assert.equal(value.ood_state,'within');assert.equal(value.ood_reference_status,'legacy_unverified');assert.ok(value.review_reasons.includes('ood_reference_unverified'));assert.ok(!value.review_reasons.includes('ood_unavailable'));
@@ -27,9 +27,9 @@ test('legacy reference qualification remains separate from available distance',(
 test('inconsistent or malformed OOD measurements cannot claim within reference',()=>{
  for(const change of [{is_ood:true},{threshold:0},{mahalanobis_distance:NaN},{available:'true'},{is_ood:null}]){const f=fixture();Object.assign(f.ood_report,change);const value=api.derive(f);assert.equal(value.ood_state,'unavailable');assert.equal(value.evidence_unknown,true);assert.ok(value.review_reasons.includes('ood_unavailable'));}
 });
-test('missing or malformed score/set data remains unknown without a normal fallback',()=>{
+test('invalid scores stay unknown; missing sets do not erase a valid numeric score',()=>{
  for(const score of [undefined,null,NaN,Infinity,-.1,1.1,'0.03',false]){const input=fixture();input.probability_tb=score;const value=api.derive(input);assert.equal(value.score_available,false);assert.equal(value.score_band,'unknown');assert.equal(value.evidence_unknown,true);}
- for(const set of [undefined,null,['Healthy'],['Normal','non_tb'],['TB','TB'],[1]]){const input=fixture();input.conformal_details.conformal_set=set;const value=api.derive(input);assert.equal(value.conformal_state,'unavailable');assert.notEqual(value.score_band,'low');assert.equal(value.evidence_unknown,true);}
+ for(const set of [undefined,null,['Healthy'],['Normal','non_tb'],['TB','TB'],[1]]){const input=fixture();input.conformal_details.conformal_set=set;const value=api.derive(input);assert.equal(value.conformal_state,'unavailable');assert.equal(value.score_band,'low');assert.equal(value.canonical_set,null);assert.equal(value.evidence_unknown,true);}
  const bad=api.derive(fixture(.03,['Normal'],{probability_normal:.8}));assert.equal(bad.score_available,false);
 });
 test('high score remains visible even when conformal data is unavailable',()=>{

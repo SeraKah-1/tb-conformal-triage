@@ -3,7 +3,7 @@
 // Service Worker Registration for Complete Air-Gapped Offline Operation
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=4.8.6-quality-advisory').then((reg) => {
+        navigator.serviceWorker.register('./sw.js?v=4.8.7-runtime').then((reg) => {
             console.log('[PWA ServiceWorker] Active with scope:', reg.scope);
             if (reg.update) {
                 reg.update();
@@ -266,8 +266,8 @@ async function initSystemStatus() {
     try {
         const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
         if (registration && registration.active && 'caches' in window) {
-            const cache = await caches.open('tb-conformal-offline-v4.8.6-quality-advisory');
-            const required = ['./static/js/dicom.js','./static/js/module_controls.js','./static/js/slider.js','./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
+            const cache = await caches.open('tb-conformal-offline-v4.8.7-runtime');
+            const required = ['./static/js/runtime_manager.js','./static/js/inference_worker.js','./vendor/onnx/ort-wasm-threaded.wasm','./vendor/onnx/ort-wasm-simd-threaded.wasm','./static/js/dicom.js','./static/js/module_controls.js','./static/js/slider.js','./index.html','./static/js/evidence.js','./static/js/progress.js','./static/js/cases.js', './static/js/reports.js','./static/js/archive.js','./static/js/settings.js','./static/js/app.js','./static/js/i18n.js',
                 './static/css/workstation.css','./vendor/onnx/ort.min.js',
                 './vendor/onnx/ort-wasm.wasm','./vendor/onnx/ort-wasm-simd.wasm',
                 './models/tb_conformal_distilled_v11_cam.onnx'];
@@ -428,78 +428,36 @@ async function verifyModelBuffer(buffer) {
     return buffer;
 }
 
-function getCachedModelBuffer() {
-    return new Promise(function(resolve) {
+// Cache is an optimization. Blocked storage must not block inference.
+function modelCache(mode, buffer) {
+    return new Promise(resolve => {
+        let db, finished=false;
+        const finish=value=>{if(finished)return;finished=true;clearTimeout(timer);db?.close();resolve(value);};
+        const timer=setTimeout(()=>finish(mode==='readwrite'?false:null),5000);
         try {
-            if (!window.indexedDB) return resolve(null);
-            const req = indexedDB.open(MODEL_CACHE_DB, 1);
-            req.onupgradeneeded = function(e) {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(MODEL_CACHE_STORE)) {
-                    db.createObjectStore(MODEL_CACHE_STORE);
-                }
+            if(!window.indexedDB)return finish(null);
+            const req=indexedDB.open(MODEL_CACHE_DB,1);
+            req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(MODEL_CACHE_STORE))req.result.createObjectStore(MODEL_CACHE_STORE);};
+            req.onerror=req.onblocked=()=>finish(null);
+            req.onsuccess=()=>{
+                db=req.result;if(finished){db.close();return;}
+                db.onversionchange=()=>{db.close();finish(null);};
+                try {
+                    const tx=db.transaction(MODEL_CACHE_STORE,mode),store=tx.objectStore(MODEL_CACHE_STORE);
+                    let value=null;
+                    if(mode==='readwrite'){store.put(buffer,MODEL_CACHE_KEY);value=true;}
+                    else {const read=store.get(MODEL_CACHE_KEY);read.onsuccess=()=>{value=read.result||null;};}
+                    tx.oncomplete=()=>finish(value);tx.onerror=tx.onabort=()=>finish(null);
+                } catch(_){finish(null);}
             };
-            req.onsuccess = function(e) {
-                const db = e.target.result;
-                const tx = db.transaction(MODEL_CACHE_STORE, 'readonly');
-                const store = tx.objectStore(MODEL_CACHE_STORE);
-                const getReq = store.get(MODEL_CACHE_KEY);
-                getReq.onsuccess = function() {
-                    const buf = getReq.result;
-                    if (buf && buf.byteLength > 20000000) {
-                        resolve(buf);
-                    } else {
-                        resolve(null);
-                    }
-                };
-                getReq.onerror = function() { resolve(null); };
-            };
-            req.onerror = function() { resolve(null); };
-        } catch (e) {
-            resolve(null);
-        }
+        } catch(_){finish(null);}
     });
 }
-
-function saveCachedModelBuffer(buffer) {
-    return new Promise(function(resolve) {
-        try {
-            if (!window.indexedDB || !buffer || buffer.byteLength < 20000000) return resolve(false);
-            const req = indexedDB.open(MODEL_CACHE_DB, 1);
-            req.onupgradeneeded = function(e) {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(MODEL_CACHE_STORE)) {
-                    db.createObjectStore(MODEL_CACHE_STORE);
-                }
-            };
-            req.onsuccess = function(e) {
-                const db = e.target.result;
-                const tx = db.transaction(MODEL_CACHE_STORE, 'readwrite');
-                const store = tx.objectStore(MODEL_CACHE_STORE);
-                store.put(buffer, MODEL_CACHE_KEY);
-                tx.oncomplete = function() { resolve(true); };
-                tx.onerror = function() { resolve(false); };
-            };
-            req.onerror = function() { resolve(false); };
-        } catch (e) {
-            resolve(false);
-        }
-    });
-}
-
-function canUseWasmSimd() {
-    try {
-        return typeof WebAssembly === 'object' && typeof WebAssembly.validate === 'function' &&
-            WebAssembly.validate(new Uint8Array([
-                0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11
-            ]));
-    } catch (e) {
-        return false;
-    }
-}
+function getCachedModelBuffer(){return modelCache('readonly');}
+function saveCachedModelBuffer(buffer){return modelCache('readwrite',buffer);}
 
 async function fetchModelBufferWithFallback(onProgress) {
-    // 1. Check local IndexedDB cache first (0 ms instant offline loading)
+    // Verify the local cache before use; no network required when valid.
     const cached = await getCachedModelBuffer();
     if (cached) {
         try {
@@ -521,15 +479,19 @@ async function fetchModelBufferWithFallback(onProgress) {
     let lastError = null;
     for (let i = 0; i < uniqueUrls.length; i++) {
         const url = uniqueUrls[i];
+        const controller=new AbortController();let idleTimer;
+        const refreshDeadline=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(()=>controller.abort(),60000);};
+        refreshDeadline();
         try {
             console.log('[Model Loader] Attempting download (' + (i + 1) + '/' + uniqueUrls.length + '): ' + url);
-            const res = await fetch(url, { mode: 'cors' });
+            const res = await fetch(url, { mode: 'cors', signal:controller.signal });
             if (!res.ok) {
                 throw new Error('HTTP ' + res.status + ' ' + res.statusText);
             }
 
             const contentLengthHeader = res.headers.get('content-length');
-            const totalBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 28229016;
+            const declaredBytes = Number(contentLengthHeader);
+            const totalBytes = Number.isFinite(declaredBytes)&&declaredBytes>0 ? declaredBytes : 28229103;
 
             if (!res.body || typeof res.body.getReader !== 'function') {
                 const buffer = await res.arrayBuffer();
@@ -549,7 +511,8 @@ async function fetchModelBufferWithFallback(onProgress) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 chunks.push(value);
-                receivedBytes += value.length;
+                receivedBytes += value.length;refreshDeadline();
+                if(receivedBytes>32*1024*1024){controller.abort();throw new Error('MODEL_TOO_LARGE');}
                 if (onProgress) {
                     const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
                     onProgress(percent, receivedBytes, totalBytes);
@@ -574,57 +537,27 @@ async function fetchModelBufferWithFallback(onProgress) {
             return finalArrayBuffer;
         } catch (err) {
             console.warn('[Model Loader] Failed from source ' + url + ':', err.message);
-            lastError = err;
-        }
+            lastError = err.name==='AbortError'?new Error('MODEL_DOWNLOAD_TIMEOUT'):err;
+        } finally {clearTimeout(idleTimer);}
     }
 
     throw new Error('Semua sumber model gagal diunduh: ' + (lastError ? lastError.message : 'Network error'));
 }
 
-async function getOrtSession(progressCallback, phaseCallback) {
-    if (ortSession) return ortSession;
-    if (isModelLoading) {
-        while (isModelLoading) {
-            await new Promise(r => setTimeout(r, 150));
-        }
-        if (ortSession) return ortSession;
-    }
-
-    isModelLoading = true;
-    try {
-        if (!window.ort) {
-            throw new Error(currentLang === 'id' ? 'Script ONNX Runtime Web belum selesai dimuat.' : 'ONNX Runtime Web script not loaded.');
-        }
-
-        if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
-            const hasSimd = canUseWasmSimd();
-            ort.env.wasm.simd = hasSimd;
-            ort.env.wasm.numThreads = 1;
-
-            const baseHref = document.baseURI || window.location.href;
-            const localWasmPath = new URL('./vendor/onnx/', baseHref).href;
-            ort.env.wasm.wasmPaths = window.useCdnWasm 
-                ? "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/" 
-                : localWasmPath;
-        }
-
-        const modelBuffer = await fetchModelBufferWithFallback(progressCallback);
-        if(phaseCallback)phaseCallback('initializing');
-        const uint8Data = new Uint8Array(modelBuffer);
-
-        ortSession = await ort.InferenceSession.create(uint8Data, {
-            executionProviders: ['wasm'],
-            graphOptimizationLevel: 'all'
-        });
-
-        console.log('[ORT] DenseNet-121 in-browser inference session ready. Inputs:', ortSession.inputNames, 'Outputs:', ortSession.outputNames);
-    } catch(err) {
-        console.error('[ORT INIT ERROR]', err);
-        throw err;
-    } finally {
-        isModelLoading = false;
-    }
-    return ortSession;
+let runtimeInitialization=null;
+async function getOrtSession(progressCallback,phaseCallback) {
+    if(ortSession)return ortSession;
+    if(runtimeInitialization)return runtimeInitialization;
+    isModelLoading=true;
+    runtimeInitialization=(async()=>{
+        const model=await fetchModelBufferWithFallback(progressCallback);
+        phaseCallback?.('initializing');
+        const session=await window.tbRuntime.create(model,document.baseURI,{threadAssets:true});
+        const run=session.run.bind(session);
+        session.run=async inputs=>{try{return await run(inputs);}catch(e){if(e.message!=='RUNTIME_QUEUE_FULL'){session.close();if(ortSession===session)ortSession=null;}throw e;}};
+        ortSession=session;return session;
+    })();
+    try{return await runtimeInitialization;}finally{runtimeInitialization=null;isModelLoading=false;}
 }
 
 // Pre-Analytic Image Quality Assurance (IQA) & Guardrails
@@ -1041,7 +974,7 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress,
     const modules = capturedModules || window.moduleControls?.snapshot() || {iqa:true,ood:true,conformal:true};
     if(onProgress)onProgress({phase:'model'});
     const session = await getOrtSession((percent,received,total,source)=>onProgress?.({phase:source==='cache'?'model':'download',percent,received,totalBytes:total}),phase=>onProgress?.({phase}));
-    if(onProgress){onProgress({phase:'inference'});await window.workProgress?.paint();}
+    if(onProgress){onProgress({phase:'inference',runtime:session.execution==='worker'?{threads:session.threads,backend:session.backend}:null});await window.workProgress?.paint();}
     const t0 = performance.now();
     const isInverted = file.dicomMetadata ? false : (iqaResult ? iqaResult.is_inverted : false);
     const tensor = preprocessImageForONNX(imageElement, isInverted);
@@ -1192,9 +1125,36 @@ async function runClientSideInference(file, imageElement, iqaResult, onProgress,
         hirescam_heatmap_base64: heatBase64,
         inference_latency_ms: latMs,
         source_dicom: file.dicomMetadata || null,
-        execution_mode: 'IN_BROWSER_WASM'
+        execution_mode: 'IN_BROWSER_WASM',
+        runtime_execution: session.execution || 'unknown',
+        runtime_threads: session.threads || 1,
+        runtime_fallback: session.fallbackReason || null
     };
     return window.moduleControls ? window.moduleControls.decorate(output, modules) : output;
+}
+
+// Bounded decode lifecycle shared by single-image and batch processing.
+function decodeImageForRun(image, source, timeoutMs=60000) {
+    return new Promise((resolve,reject)=>{
+        let done=false;
+        const finish=error=>{if(done)return;done=true;clearTimeout(timer);image.onload=image.onerror=null;if(error){image.src='';reject(error);}else resolve();};
+        const timer=setTimeout(()=>finish(new Error('IMAGE_DECODE_TIMEOUT')),timeoutMs);
+        image.onload=()=>finish();
+        image.onerror=()=>finish(new Error('Corrupt or unreadable image file.'));
+        image.src=source;
+        if(image.complete&&image.naturalWidth>0)finish();
+    });
+}
+function readImageSource(file) {
+    return new Promise((resolve,reject)=>{
+        const reader=new FileReader();let done=false;
+        const finish=(error,value)=>{if(done)return;done=true;clearTimeout(timer);reader.onload=reader.onerror=reader.onabort=null;error?reject(error):resolve(value);};
+        const timer=setTimeout(()=>{finish(new Error('IMAGE_READ_TIMEOUT'));reader.abort();},60000);
+        reader.onload=e=>finish(null,e.target.result);
+        reader.onerror=()=>finish(new Error('Unable to read image file.'));
+        reader.onabort=()=>finish(new Error('IMAGE_READ_CANCELLED'));
+        try{reader.readAsDataURL(file);}catch(e){finish(e);}
+    });
 }
 
 // 8. Single CXR Triage Execution (Dual Mode Live/Static)
@@ -1216,21 +1176,11 @@ async function submitSingleTriage() {
     await window.workProgress?.paint();
     try {
         // Always read this request's own file, including while its preview is still loading.
-        const source = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = e => resolve(e.target.result);
-            reader.onerror = () => reject(new Error('Unable to read image file.'));
-            reader.readAsDataURL(file);
-        });
+        const source = await readImageSource(file);
         if (!isCurrent()) return;
         requestSource = source;
         const tempImg = new Image();
-        await new Promise((resolve, reject) => {
-            tempImg.onload = resolve;
-            tempImg.onerror = () => reject(new Error('Corrupt or unreadable image file.'));
-            tempImg.src = source;
-            if (tempImg.complete && tempImg.naturalWidth > 0) resolve();
-        });
+        await decodeImageForRun(tempImg, source);
         if (!isCurrent()) return;
         report({phase:'quality'});
         await window.workProgress?.paint();
@@ -1660,6 +1610,9 @@ function technicalBatchResult(file, action, warning, iqa, elapsed, capturedModul
         ood_report: { status: 'unavailable', available: false, mahalanobis_distance: null, threshold: null, is_ood: null },
         allow_autonomous_release: false, hirescam_heatmap_base64: null,
         inference_latency_ms: Math.round(elapsed), execution_mode: 'IN_BROWSER_WASM',
+        runtime_execution: ortSession?.execution || 'unavailable',
+        runtime_threads: ortSession?.threads || null,
+        runtime_fallback: ortSession?.fallbackReason || null,
         source_dicom: file.dicomMetadata ? {...file.dicomMetadata} : null
     };
     return window.moduleControls ? window.moduleControls.decorate(output, capturedModules || window.moduleControls.snapshot()) : output;
@@ -1673,12 +1626,7 @@ async function processBatchItem(file,onProgress,capturedModules) {
     const tempImg = new Image();
     let decoded = false;
     try {
-        await new Promise((resolve, reject) => {
-            tempImg.onload = resolve;
-            tempImg.onerror = () => reject(new Error('Corrupt or unreadable image file.'));
-            tempImg.src = imgUrl;
-            if (tempImg.complete && tempImg.naturalWidth > 0) resolve();
-        });
+        await decodeImageForRun(tempImg, imgUrl);
         decoded = true;
         if(onProgress)onProgress({phase:'quality'});
         await window.workProgress?.paint();
@@ -1691,159 +1639,23 @@ async function processBatchItem(file,onProgress,capturedModules) {
         const inference = await runClientSideInference(file, tempImg, iqaResult,onProgress,modules);
         return window.moduleControls.decorate(inference, modules);
     } catch (err) {
-        return technicalBatchResult(file, decoded ? 'ERROR_RUNTIME' : 'REJECT_CORRUPT_IMAGE',
-            err.message || 'Processing failed; clinician review required.', null, performance.now() - start, modules);
+        const runtimeFailure=decoded || err.message==='IMAGE_DECODE_TIMEOUT';
+        const result=technicalBatchResult(file,runtimeFailure?'ERROR_RUNTIME':'REJECT_CORRUPT_IMAGE',
+            err.message || 'Processing failed.',null,performance.now()-start,modules);
+        result.failure_scope=runtimeFailure?'runtime':'file';
+        return result;
     } finally {
         URL.revokeObjectURL(imgUrl);
     }
 }
 
-function cancelBatchProcessing() {
-    if (!isBatchRunning) return;
-    isBatchCancelled = true;
-    const cancelBtn = document.getElementById('btn-batch-cancel');
-    if (cancelBtn) cancelBtn.disabled = true;
-}
-
-async function startBatchProcessing() {
-    if (window.caseWorkspace?.state.running) return;
-    if (batchFiles.length === 0 || isBatchRunning) return;
-    isBatchRunning = true;
-    isBatchCancelled = false;
-    batchResults = new Array(batchFiles.length);
-
-    const startBtn = document.getElementById('btn-batch-start');
-    const cancelBtn = document.getElementById('btn-batch-cancel');
-    const csvBtn = document.getElementById('btn-batch-csv');
-    const progressBox = document.getElementById('batch-progress-box');
-    const progressBar = document.getElementById('batch-progress-bar');
-    const tbody = document.getElementById('batch-tbody');
-
-    if (startBtn) startBtn.disabled = true;
-    if (cancelBtn) {
-        cancelBtn.style.display = 'inline-flex';
-        cancelBtn.disabled = false;
-    }
-    if (csvBtn) csvBtn.disabled = true;
-    if (progressBox) progressBox.style.display = 'block';
-    if (tbody) tbody.innerHTML = '';
-
-    try {
-        await getOrtSession();
-    } catch(modelErr) {
-        isBatchRunning = false;
-        if (startBtn) startBtn.disabled = false;
-        if (cancelBtn) cancelBtn.style.display = 'none';
-        alert((currentLang === 'id' ? 'Gagal menyiapkan model AI: ' : 'Failed to prepare AI model: ') + modelErr.message);
-        return;
-    }
-
-    let normalCount = 0;
-    let tbCount = 0;
-    let refCount = 0;
-    let completed = 0;
-    const total = batchFiles.length;
-
-    // Worker pool concurrency = 4
-    const concurrency = 4;
-    let index = 0;
-
-    async function worker() {
-        while (index < total) {
-            if (isBatchCancelled) break;
-            const currentIndex = index++;
-            const file = batchFiles[currentIndex];
-
-            const t = I18N_DICT[currentLang] || I18N_DICT.id;
-            const row = document.createElement('tr');
-            row.id = `batch-row-${currentIndex}`;
-            row.className = 'clickable-row';
-            row.innerHTML = `
-                <td>${currentIndex + 1}</td>
-                <td>${escapeHtml(file.name)}</td>
-                <td id="status-${currentIndex}">${t.batchStatusProcessing}</td>
-                <td id="prob-${currentIndex}">-</td>
-                <td id="action-${currentIndex}">-</td>
-                <td id="lat-${currentIndex}">-</td>
-                <td id="opt-${currentIndex}">-</td>
-            `;
-            if (tbody) tbody.appendChild(row);
-
-            try {
-                const data = await processBatchItem(file);
-                const lat = data.inference_latency_ms;
-
-                if (data) {
-                    batchResults[currentIndex] = data;
-                    const isRejected = data.triage_action.startsWith('REJECT_') || data.predicted_class === 'Rejected';
-                    const isRuntimeError = data.triage_action === 'ERROR_RUNTIME';
-                    const statusCell = document.getElementById(`status-${currentIndex}`);
-                    const probCell = document.getElementById(`prob-${currentIndex}`);
-                    const actionCell = document.getElementById(`action-${currentIndex}`);
-                    const latCell = document.getElementById(`lat-${currentIndex}`);
-                    const optCell = document.getElementById(`opt-${currentIndex}`);
-
-                    if (statusCell) statusCell.innerText = isRuntimeError ? t.batchStatusFailed : isRejected ? t.batchStatusRejected : t.batchStatusSuccess;
-                    if (probCell) probCell.innerText = (isRejected || !Number.isFinite(data.probability_tb)) ? 'N/A' : (data.probability_tb * 100).toFixed(1) + '%';
-                    if (actionCell) actionCell.innerText = data.triage_action;
-                    if (latCell) latCell.innerText = lat + ' ms';
-                    if (optCell) {
-                        optCell.innerHTML = `<button class="btn-table-inspect" onclick="inspectBatchItem(${currentIndex}); event.stopPropagation();">👁️ ${t.btnInspect || 'Buka'}</button>`;
-                    }
-                    row.onclick = () => inspectBatchItem(currentIndex);
-
-                    if (data.triage_action === 'ASSISTIVE_NORMAL_DOCTOR_VERIFY') {
-                        normalCount++;
-                    } else if (data.triage_action === 'AUTO_FLAG_TB_URGENT') {
-                        tbCount++;
-                    } else {
-                        refCount++;
-                    }
-                } else {
-                    batchResults[currentIndex] = null;
-                    const statusCell = document.getElementById(`status-${currentIndex}`);
-                    const actionCell = document.getElementById(`action-${currentIndex}`);
-                    if (statusCell) statusCell.innerText = t.batchStatusFailed;
-                    if (actionCell) actionCell.innerText = I18N_DICT[currentLang].inferenceFailed;
-                }
-            } catch(e) {
-                batchResults[currentIndex] = null;
-                const statusCell = document.getElementById(`status-${currentIndex}`);
-                const actionCell = document.getElementById(`action-${currentIndex}`);
-                if (statusCell) statusCell.innerText = t.batchStatusFailed;
-                if (actionCell) actionCell.innerText = e.message || 'Error';
-            }
-
-            completed++;
-            const pct = Math.round((completed / total) * 100);
-            if (progressBar) progressBar.style.width = pct + '%';
-            document.getElementById('kpi-normal-val').innerText = normalCount;
-            document.getElementById('kpi-tb-val').innerText = tbCount;
-            document.getElementById('kpi-ref-val').innerText = refCount;
-        }
-    }
-
-    const workers = [];
-    for (let i = 0; i < Math.min(concurrency, total); i++) {
-        workers.push(worker());
-    }
-    await Promise.all(workers);
-
-    if (isBatchCancelled) {
-        const t = I18N_DICT[currentLang] || I18N_DICT.id;
-        for (let i = index; i < total; i++) {
-            const statusCell = document.getElementById(`status-${i}`);
-            const actionCell = document.getElementById(`action-${i}`);
-            if (statusCell) statusCell.innerText = t.batchStatusCancelled || 'Dibatalkan';
-            if (actionCell) actionCell.innerText = 'Dibatalkan';
-        }
-    }
-
-    isBatchRunning = false;
-    isBatchCancelled = false;
-    if (cancelBtn) cancelBtn.style.display = 'none';
-    if (startBtn) startBtn.disabled = false;
-    if (csvBtn) csvBtn.disabled = batchResults.filter(Boolean).length === 0;
+// Legacy entry points delegate to the single case queue; no second worker pool.
+function cancelBatchProcessing(){window.caseWorkspace?.cancel();}
+async function startBatchProcessing(){
+    if(!window.caseWorkspace)throw new Error('Case queue unavailable');
+    const files=batchFiles.slice();batchFiles=[];
+    window.caseWorkspace.addFiles(files);
+    await window.caseWorkspace.process();
 }
 
 function inspectBatchItem(index) {

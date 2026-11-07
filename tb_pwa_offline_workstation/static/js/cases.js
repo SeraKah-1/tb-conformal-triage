@@ -79,9 +79,10 @@
         return window.caseEvidence?.derive(r.result)||{score_available:false,score_tb:null,score_band:'unknown',canonical_set:null,conformal_state:'unavailable',ood_state:'unavailable',ood_reference_status:'unavailable',iqa_state:'unavailable',review_reasons:['evidence_unknown'],review_required:true,evidence_unknown:true};
     }
     function outcome(r) {
-        if(!r.result)return r.state==='failed'?'imageIssue':'noResult';
+        if(!r.result)return r.state==='failed'?'failed':'noResult';
         const action=typeof r.result.triage_action==='string'?r.result.triage_action:'';
-        if(action.startsWith('REJECT_')||action==='ERROR_RUNTIME')return 'imageIssue';
+        if(action==='ERROR_RUNTIME')return 'failed';
+        if(action.startsWith('REJECT_'))return 'imageIssue';
         const value=evidence(r);return value.score_band==='high'?'high':value.score_band==='low'?'low':value.evidence_unknown?'evidenceUnknown':'uncertain';
     }
     function hasPrediction(r) {return Boolean(r.result&&evidence(r).score_available);}
@@ -224,6 +225,9 @@
         if(view!=='queue' && !canLeave())return;
         if(view==='single')rememberSingle();
         const now=Date.now();rejectedNames=[];
+        const sourceBudget=256*1024*1024;let sourceBytes=Array.from(records.values()).reduce((n,r)=>n+(r.image?.size||0),0);
+        const incoming=Array.from(files);
+        if(records.size+incoming.length>2000 || incoming.some(f=>f.size>16*1024*1024) || sourceBytes+incoming.reduce((n,f)=>n+f.size,0)>sourceBudget){if(message)message.textContent=language==='en'?'Queue limit: 2,000 images, 16 MB each, 256 MB total. Save and clear this session first.':'Batas antrean: 2.000 gambar, 16 MB per gambar, total 256 MB. Simpan lalu reset sesi dahulu.';return;}
         for(const [i,file] of Array.from(files).entries()) {
             if(!/\.(png|jpe?g|webp)$/i.test(file.name)) {rejectedNames.push(file.name);continue;}
             const id=uid();
@@ -236,7 +240,7 @@
     async function executeRun(pending) {
         if(running || (typeof isSubmitting!=='undefined'&&isSubmitting) || (typeof isBatchRunning!=='undefined'&&isBatchRunning) || !pending.length)return;
         const capturedModules=window.moduleControls?.snapshot();
-        running=true;cancelled=false;run={id:++runSequence,total:pending.length,completed:0,failed:0,cancelled:0,skipped:0};renderList();
+        running=true;cancelled=false;run={id:++runSequence,total:pending.length,completed:0,failed:0,cancelled:0,skipped:0,stopped:false};renderList();
         const progressToken=window.workProgress?.start('batch',{phase:'decode',total:pending.length,completed:0});
         const updateProgress=extra=>window.workProgress?.update('batch',{completed:run.completed,failed:run.failed,cancelled:run.cancelled,skipped:run.skipped,...extra},progressToken);
         try {
@@ -252,12 +256,18 @@
                     const file=r.image instanceof File?r.image:new File([r.image],r.filename,{type:r.image.type});
                     if(r.result?.source_dicom)file.dicomMetadata=r.result.source_dicom;
                     result=await processBatchItem(file,stage=>updateProgress(stage),capturedModules);
-                } catch(e) { /* Failure remains explicit and can only be retried on request. */ }
+                } catch(e) { result=technicalBatchResult(r.image,'ERROR_RUNTIME',e.message||'PROCESSING_FAILED',null,0,capturedModules); }
                 if(!records.has(r.id)){run.skipped++;updateProgress({});continue;}
                 finishResult(r,result);if(r.state==='failed')run.failed++;else run.completed++;
                 updateProgress({});renderList();if(activeId===r.id)await showResult(r);
+                // A device-wide failure must not spend one timeout per remaining image.
+                if(r.state==='failed' && (r.result?.failure_scope==='runtime' || /RUNTIME_|WORKER_|MODEL_|SHA-256|Secure SHA|sources|sumber model/.test(r.result?.warning||''))){
+                    run.stopped=true;
+                    if(message)message.textContent=language==='en'?'Processing stopped. Remaining images stay queued. Retry after resolving the error.':'Proses berhenti. Gambar tersisa tetap mengantre. Coba lagi setelah masalah diperbaiki.';
+                    break;
+                }
             }
-        } finally {window.workProgress?.finish('batch',{completed:run.completed,failed:run.failed,cancelled:run.cancelled,skipped:run.skipped,status:cancelled?'cancelled':run.failed?'attention':'done'},progressToken);running=false;renderList();renderDetailTools();}
+        } finally {window.workProgress?.finish('batch',{completed:run.completed,failed:run.failed,cancelled:run.cancelled,skipped:run.skipped,remaining:run.stopped?run.total-run.completed-run.failed-run.cancelled-run.skipped:0,status:cancelled?'cancelled':run.failed?'attention':'done'},progressToken);running=false;renderList();renderDetailTools();}
     }
     async function process(scope='visible') {
         return executeRun(scopeRecords(scope==='selected'?'selected':'visible'));
@@ -381,7 +391,7 @@
             status.setAttribute('role','status');pager.append(previous,status,next);
         }
         const counts=Array.from(records.values());
-        const runText=run&&view==='queue'?` · ${t('progress')}: ${run.completed+run.failed}/${run.total} · ${t('failed')}: ${run.failed} · ${t('cancelled')}: ${run.cancelled}${run.skipped?' · '+t('skipped')+': '+run.skipped:''}`:'';
+        const runText=run&&view==='queue'?` · ${t('progress')}: ${run.completed}/${run.total} · ${t('failed')}: ${run.failed} · ${t('cancelled')}: ${run.cancelled}${run.skipped?' · '+t('skipped')+': '+run.skipped:''}`:'';
         if(progress)progress.textContent=`${t('count')}: ${rows.length}${selected.size?' · '+t('selected')+': '+selected.size:''}${runText}`;
         for(const button of workspace.querySelectorAll('[data-action=add],[data-action=folder]'))button.disabled=importing;
         const blocked=running||importing||(typeof isSubmitting!=='undefined'&&isSubmitting);
@@ -586,7 +596,8 @@
         build();loadArchives();
         renderNav();
     }
-    window.caseWorkspace={setLanguage,captureSingle,clearSingle,addFiles,open:openCase,process,retry,resetSession,refreshArchives:loadArchives,save:saveActive,remove:removeCases,export:exportCases,setView,get state(){return {records:Array.from(records.values()),activeId,view,running,loadingArchives,pageIndex,pageSize:PAGE_SIZE,filter,sort,selectedIds:Array.from(selected),run:run?{...run}:null};}};
+    function cancel(){cancelled=true;window.workProgress?.update('batch',{cancelling:true});renderList();}
+    window.caseWorkspace={cancel,setLanguage,captureSingle,clearSingle,addFiles,open:openCase,process,retry,resetSession,refreshArchives:loadArchives,save:saveActive,remove:removeCases,export:exportCases,setView,get state(){return {records:Array.from(records.values()),activeId,view,running,loadingArchives,pageIndex,pageSize:PAGE_SIZE,filter,sort,selectedIds:Array.from(selected),run:run?{...run}:null};}};
     window.addEventListener('tb-language-change',e=>setLanguage(e.detail?.language||e.detail?.lang||'id'));
     window.addEventListener('beforeunload',e=> {if(Array.from(records.values()).some(r=>dirty(r))){e.preventDefault();e.returnValue='';}});
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();

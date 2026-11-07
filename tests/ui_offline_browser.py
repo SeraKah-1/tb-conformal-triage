@@ -3,12 +3,14 @@ import json
 import os
 from pathlib import Path
 import socket
+import re
 import subprocess
 import time
 import urllib.request
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
+CACHE = re.search(r"const CACHE_NAME = '([^']+)'", (ROOT/'tb_pwa_offline_workstation/sw.js').read_text()).group(1)
 
 def main():
     checks = []
@@ -39,7 +41,7 @@ def main():
             check('offline readiness requires cached assets', 'Offline' in page.locator('#txt-status').inner_text())
             check('unrelated cache preserved', page.evaluate("caches.has('other-app')"))
             page.evaluate("fetch('/requirements.txt').catch(()=>{})")
-            check('non-application resources not cached', page.evaluate("caches.open('tb-conformal-offline-v4.8.5-heatmap').then(c=>c.keys()).then(a=>!a.some(r=>r.url.includes('requirements.txt')))"))
+            check('non-application resources not cached', page.evaluate("name=>caches.open(name).then(c=>c.keys()).then(a=>!a.some(r=>r.url.includes('requirements.txt')))", CACHE))
             context.new_cdp_session(page).send('Network.clearBrowserCache')
             context.set_offline(True)
             page.reload(); page.wait_for_function('window.caseWorkspace && !caseWorkspace.state.loadingArchives')
@@ -47,11 +49,11 @@ def main():
             page.evaluate('applyLanguage("en")')
             check('English available offline', page.locator('#case-process').inner_text() == 'Process shown')
             check('no automatic model session', page.evaluate('ortSession===null'))
-            page.evaluate('''async()=>{
-                const c=await caches.open('tb-conformal-offline-v4.8.5-heatmap');
+            page.evaluate('''async(name)=>{
+                const c=await caches.open(name);
                 await c.delete(new URL('./static/js/cases.js',document.baseURI).href);
                 await initSystemStatus();
-            }''')
+            }''', CACHE)
             check('missing asset removes ready claim', page.locator('#txt-status').inner_text() in ['Online', 'Offline incomplete'])
             check('no JS errors', not errors)
             context.close(); browser.close()
